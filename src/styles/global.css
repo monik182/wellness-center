@@ -1,0 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=La+Belle+Aurore&display=swap');
+
+:root {
+  --cream:   #FFFDF5;
+  --peach:   #FFF0E5;
+  --beige:   #F5F0E8;
+  --border:  #E8E0D4;
+  --ink:     #1A1A1A;
+  --muted:   #2D2D2D;
+  --green:   #B2D8B2;
+  --blue:    #BDE0FE;
+  --orange:  #FFD1A1;
+  --pink:    #F5C6D0;
+  --lavender:#E0BBE4;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 16px; }
+
+body {
+  background: var(--beige);
+  color: var(--ink);
+  font-family: 'Poppins', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+#root {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+a { text-decoration: none; color: inherit; }
+
+button {
+  font-family: 'Poppins', sans-serif;
+  cursor: pointer;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+.fade-up { animation: fadeUp 0.3s ease; }
