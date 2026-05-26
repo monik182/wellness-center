@@ -1,13 +1,14 @@
 import { NavLink } from "react-router-dom";
 
 const NAV = [
-  { to: "/",         label: "Comidas",   emoji: "🍽️" },
-  { to: "/schedule", label: "Horarios",  emoji: "⏰" },
-  { to: "/wheel",    label: "Wheel",     emoji: "🎡" },
-  { to: "/foods",    label: "Alimentos", emoji: "📊" },
-  { to: "/prep",     label: "Prep",      emoji: "🔪" },
-  { to: "/shopping", label: "Compras",   emoji: "🛒" },
-  { to: "/rules",    label: "Reglas",    emoji: "📏" },
+  { to: "/",             label: "Comidas",   emoji: "🍽️" },
+  { to: "/schedule",     label: "Horarios",  emoji: "⏰" },
+  { to: "/macro-targets", label: "Macros",   emoji: "🎯" },
+  { to: "/wheel",        label: "Wheel",     emoji: "🎡" },
+  { to: "/foods",        label: "Alimentos", emoji: "📊" },
+  { to: "/prep",         label: "Prep",      emoji: "🔪" },
+  { to: "/shopping",     label: "Compras",   emoji: "🛒" },
+  { to: "/rules",        label: "Reglas",    emoji: "📏" },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
