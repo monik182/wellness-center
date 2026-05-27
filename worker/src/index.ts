@@ -28,6 +28,11 @@ interface Suggestion {
   reason: string;
 }
 
+interface ChatRequest {
+  messages: Array<{ role: "user" | "assistant"; content: string }>;
+  foods: Array<{ id: string; name: string; defaultWeight_g: number }>;
+}
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -195,6 +200,60 @@ Rules:
 
       const parsed = JSON.parse(match[0]) as { suggestions: Suggestion[] };
       return json(parsed.suggestions ?? []);
+    }
+
+    // /api/chat
+    if (path === "/api/chat" && method === "POST") {
+      const body = await request.json() as ChatRequest;
+
+      const foodLines = body.foods
+        .map((f) => `${f.id}|${f.name}|${f.defaultWeight_g}g`)
+        .join("\n");
+
+      const systemPrompt = `You are a nutrition logging assistant. The user describes what they ate. Match their input to foods from the list below and return structured data.
+
+Available foods (id|name|defaultWeight_g):
+${foodLines}
+
+Rules:
+- Match fuzzy: "pollo" → pechuga_pollo, "huevos" → huevo, "avena" → avena
+- If count given (e.g. "2 huevos"): weight_g = count * defaultWeight_g
+- If weight given (e.g. "150g de pollo"): use that weight
+- If neither: use defaultWeight_g
+- If a food cannot be matched: ask for clarification in Spanish (max 15 words)
+- Respond ONLY with valid JSON, no markdown:
+  {"type":"items","items":[{"foodId":"...","name":"...","weight_g":N},...]}
+  OR
+  {"type":"message","text":"..."}`;
+
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": env.ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 512,
+          system: systemPrompt,
+          messages: body.messages,
+        }),
+      });
+
+      if (!resp.ok) return err("Anthropic API error", 502);
+
+      const aiResp = await resp.json() as { content: Array<{ text: string }> };
+      const text = aiResp.content[0]?.text ?? "{}";
+
+      const match = text.match(/\{[\s\S]*\}/);
+      if (!match) return json({ type: "message", text: "No entendí. Intenta de nuevo." });
+
+      try {
+        return json(JSON.parse(match[0]));
+      } catch {
+        return json({ type: "message", text: "No entendí. Intenta de nuevo." });
+      }
     }
 
     return err("Not found", 404);

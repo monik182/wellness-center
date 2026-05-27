@@ -1,4 +1,4 @@
-import type { LoggedMeal, Suggestion, TrackerFood, MacroTotals } from "../pages/calorie-tracker/types";
+import type { LoggedMeal, Suggestion, TrackerFood, MacroTotals, ChatMessage } from "../pages/calorie-tracker/types";
 
 const BASE = import.meta.env.VITE_API_URL ?? "";
 const KEY  = import.meta.env.VITE_API_KEY  ?? "";
@@ -37,5 +37,18 @@ export const api = {
       method: "POST",
       headers: headers(),
       body: JSON.stringify(payload),
+    }).then((r) => r.json()),
+
+  chat: (
+    messages: ChatMessage[],
+    foods: Array<{ id: string; name: string; defaultWeight_g: number }>
+  ): Promise<
+    | { type: "items"; items: Array<{ foodId: string; name: string; weight_g: number }> }
+    | { type: "message"; text: string }
+  > =>
+    fetch(`${BASE}/api/chat`, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ messages, foods }),
     }).then((r) => r.json()),
 };

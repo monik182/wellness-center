@@ -3,7 +3,7 @@ import { TRACKER_FOODS } from "../../data/calorieTrackerFoods";
 import {
   getTodayCET, getCurrentTimeCET,
   macroScale, sumTotals,
-  type TrackerFood, type LoggedFoodItem, type LoggedMeal,
+  type TrackerFood, type LoggedFoodItem, type LoggedMeal, type ChatMessage,
 } from "./types";
 import { api } from "../../api/client";
 
@@ -21,6 +21,10 @@ interface Props {
 export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }: Props) {
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
+  const [chatMode, setChatMode] = useState(false);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return TRACKER_FOODS;
@@ -96,169 +100,303 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
     return map;
   }, []);
 
+  async function handleChatSend() {
+    if (!chatInput.trim() || chatLoading) return;
+    const userMsg: ChatMessage = { role: "user", content: chatInput.trim() };
+    const newHistory = [...chatHistory, userMsg];
+    setChatHistory(newHistory);
+    setChatInput("");
+    setChatLoading(true);
+    try {
+      const result = await api.chat(
+        newHistory,
+        TRACKER_FOODS.map((f) => ({ id: f.id, name: f.name, defaultWeight_g: f.defaultWeight_g }))
+      );
+      if (result.type === "items") {
+        const merged = [...selectorItems];
+        for (const add of result.items) {
+          const idx = merged.findIndex((s) => s.foodId === add.foodId);
+          if (idx >= 0) merged[idx] = { ...merged[idx], weight_g: merged[idx].weight_g + add.weight_g };
+          else merged.push({ foodId: add.foodId, weight_g: add.weight_g });
+        }
+        setSelectorItems(merged);
+        const names = result.items.map((i) => `${i.name} (${i.weight_g}g)`).join(", ");
+        setChatHistory([...newHistory, { role: "assistant", content: `Agregado: ${names}` }]);
+      } else {
+        setChatHistory([...newHistory, { role: "assistant", content: result.text }]);
+      }
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
   return (
     <div>
-      {/* Search */}
-      <input
-        type="search"
-        placeholder="Buscar alimento..."
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        style={{
-          width: "100%", padding: "10px 12px", borderRadius: 10,
-          border: "1px solid var(--border)", background: "var(--cream)",
-          fontSize: 13, fontFamily: "inherit", marginBottom: 10,
-          outline: "none",
-        }}
-      />
+      {/* Mode toggle */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+        {(["Selector", "Chat"] as const).map((mode) => {
+          const active = (mode === "Chat") === chatMode;
+          return (
+            <button
+              key={mode}
+              onClick={() => setChatMode(mode === "Chat")}
+              style={{
+                flex: 1, padding: "8px 0", borderRadius: 8,
+                border: active ? "none" : "1px solid var(--border)",
+                background: active ? "var(--ink)" : "var(--beige)",
+                color: active ? "var(--cream)" : "var(--muted)",
+                fontSize: 12, fontWeight: active ? 600 : 400, cursor: "pointer",
+              }}
+            >
+              {mode}
+            </button>
+          );
+        })}
+      </div>
 
-      {/* Food list */}
-      {query.trim() && (
-        <div style={{
-          background: "var(--cream)", borderRadius: 10, border: "1px solid var(--border)",
-          marginBottom: 14, maxHeight: 220, overflowY: "auto",
-        }}>
-          {filtered.length === 0 ? (
-            <p style={{ fontSize: 12, color: "var(--muted)", padding: "12px 14px" }}>
-              Sin resultados.
-            </p>
-          ) : (
-            filtered.map((food) => (
-              <button
-                key={food.id}
-                onClick={() => { addFood(food); setQuery(""); }}
-                style={{
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  width: "100%", padding: "10px 14px", background: "none",
-                  border: "none", borderBottom: "1px solid var(--border)",
-                  cursor: "pointer", textAlign: "left",
-                }}
-              >
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>{food.name}</p>
-                  <p style={{ fontSize: 11, color: "var(--muted)" }}>
-                    por 100g: {food.kcalPer100g} kcal · {food.proteinPer100g}g P
-                  </p>
-                </div>
-                <span style={{
-                  fontSize: 10, background: "var(--beige)", padding: "2px 8px",
-                  borderRadius: 20, color: "var(--muted)", flexShrink: 0, marginLeft: 8,
-                }}>
-                  {food.group}
-                </span>
-              </button>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Selected items */}
-      {selectorItems.length > 0 && (
+      {chatMode ? (
+        <ChatView
+          history={chatHistory}
+          input={chatInput}
+          loading={chatLoading}
+          onSend={handleChatSend}
+          onInputChange={setChatInput}
+        />
+      ) : (
         <>
-          <p style={{ fontSize: 11, color: "var(--muted)", marginBottom: 8, fontWeight: 600 }}>
-            SELECCIONADOS
-          </p>
-          {selectorItems.map((sel, idx) => {
-            const food = foodById.get(sel.foodId);
-            if (!food) return null;
-            const macros = macroScale(food, sel.weight_g);
-            return (
-              <div
-                key={`${sel.foodId}-${idx}`}
-                style={{
-                  background: "var(--cream)", borderRadius: 10, border: "1px solid var(--border)",
-                  padding: "10px 12px", marginBottom: 8,
-                  display: "flex", alignItems: "center", gap: 10,
-                }}
-              >
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)", marginBottom: 3 }}>
-                    {food.name}
-                  </p>
-                  <p style={{ fontSize: 11, color: "var(--muted)" }}>
-                    {Math.round(macros.kcal)} kcal · {Math.round(macros.protein * 10) / 10}g P · {Math.round(macros.carbs * 10) / 10}g C
-                  </p>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <input
-                    type="number"
-                    min={1}
-                    max={2000}
-                    value={sel.weight_g}
-                    onChange={(e) => updateWeight(idx, e.target.value)}
+          {/* Search */}
+          <input
+            type="search"
+            placeholder="Buscar alimento..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            style={{
+              width: "100%", padding: "10px 12px", borderRadius: 10,
+              border: "1px solid var(--border)", background: "var(--cream)",
+              fontSize: 13, fontFamily: "inherit", marginBottom: 10,
+              outline: "none",
+            }}
+          />
+
+          {/* Food list */}
+          {query.trim() && (
+            <div style={{
+              background: "var(--cream)", borderRadius: 10, border: "1px solid var(--border)",
+              marginBottom: 14, maxHeight: 220, overflowY: "auto",
+            }}>
+              {filtered.length === 0 ? (
+                <p style={{ fontSize: 12, color: "var(--muted)", padding: "12px 14px" }}>
+                  Sin resultados.
+                </p>
+              ) : (
+                filtered.map((food) => (
+                  <button
+                    key={food.id}
+                    onClick={() => { addFood(food); setQuery(""); }}
                     style={{
-                      width: 64, padding: "5px 6px", borderRadius: 6,
-                      border: "1px solid var(--border)", background: "var(--beige)",
-                      fontSize: 13, fontFamily: "inherit", textAlign: "center",
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
+                      width: "100%", padding: "10px 14px", background: "none",
+                      border: "none", borderBottom: "1px solid var(--border)",
+                      cursor: "pointer", textAlign: "left",
                     }}
-                  />
-                  <span style={{ fontSize: 11, color: "var(--muted)" }}>g</span>
-                </div>
+                  >
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>{food.name}</p>
+                      <p style={{ fontSize: 11, color: "var(--muted)" }}>
+                        por 100g: {food.kcalPer100g} kcal · {food.proteinPer100g}g P
+                      </p>
+                    </div>
+                    <span style={{
+                      fontSize: 10, background: "var(--beige)", padding: "2px 8px",
+                      borderRadius: 20, color: "var(--muted)", flexShrink: 0, marginLeft: 8,
+                    }}>
+                      {food.group}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* Selected items */}
+          {selectorItems.length > 0 && (
+            <>
+              <p style={{ fontSize: 11, color: "var(--muted)", marginBottom: 8, fontWeight: 600 }}>
+                SELECCIONADOS
+              </p>
+              {selectorItems.map((sel, idx) => {
+                const food = foodById.get(sel.foodId);
+                if (!food) return null;
+                const macros = macroScale(food, sel.weight_g);
+                return (
+                  <div
+                    key={`${sel.foodId}-${idx}`}
+                    style={{
+                      background: "var(--cream)", borderRadius: 10, border: "1px solid var(--border)",
+                      padding: "10px 12px", marginBottom: 8,
+                      display: "flex", alignItems: "center", gap: 10,
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)", marginBottom: 3 }}>
+                        {food.name}
+                      </p>
+                      <p style={{ fontSize: 11, color: "var(--muted)" }}>
+                        {Math.round(macros.kcal)} kcal · {Math.round(macros.protein * 10) / 10}g P · {Math.round(macros.carbs * 10) / 10}g C
+                      </p>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <input
+                        type="number"
+                        min={1}
+                        max={2000}
+                        value={sel.weight_g}
+                        onChange={(e) => updateWeight(idx, e.target.value)}
+                        style={{
+                          width: 64, padding: "5px 6px", borderRadius: 6,
+                          border: "1px solid var(--border)", background: "var(--beige)",
+                          fontSize: 13, fontFamily: "inherit", textAlign: "center",
+                        }}
+                      />
+                      <span style={{ fontSize: 11, color: "var(--muted)" }}>g</span>
+                    </div>
+                    <button
+                      onClick={() => removeItem(idx)}
+                      style={{
+                        background: "none", border: "none", cursor: "pointer",
+                        fontSize: 16, color: "var(--muted)", padding: "0 4px",
+                      }}
+                    >
+                      x
+                    </button>
+                  </div>
+                );
+              })}
+
+              {/* Running totals */}
+              <div style={{
+                background: "var(--beige)", borderRadius: 10, padding: 12,
+                marginBottom: 14, fontSize: 12,
+                display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6,
+              }}>
+                {[
+                  { label: "Kcal",     val: Math.round(runningTotals.kcal) },
+                  { label: "Proteina", val: `${Math.round(runningTotals.protein * 10) / 10}g` },
+                  { label: "Carbos",   val: `${Math.round(runningTotals.carbs * 10) / 10}g` },
+                  { label: "Grasa",    val: `${Math.round(runningTotals.fat * 10) / 10}g` },
+                  { label: "Fibra",    val: `${Math.round(runningTotals.fiber * 10) / 10}g` },
+                  { label: "Azucar",   val: `${Math.round(runningTotals.sugar * 10) / 10}g` },
+                ].map(({ label, val }) => (
+                  <div key={label} style={{ textAlign: "center" }}>
+                    <p style={{ fontSize: 10, color: "var(--muted)" }}>{label}</p>
+                    <p style={{ fontWeight: 600, color: "var(--ink)" }}>{val}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", gap: 8 }}>
                 <button
-                  onClick={() => removeItem(idx)}
+                  onClick={() => setSelectorItems([])}
                   style={{
-                    background: "none", border: "none", cursor: "pointer",
-                    fontSize: 16, color: "var(--muted)", padding: "0 4px",
+                    flex: 1, padding: "10px 0", borderRadius: 10,
+                    border: "1px solid var(--border)", background: "var(--beige)",
+                    fontSize: 13, cursor: "pointer", color: "var(--muted)",
                   }}
                 >
-                  x
+                  Limpiar
+                </button>
+                <button
+                  onClick={handleLog}
+                  disabled={saving}
+                  style={{
+                    flex: 2, padding: "10px 0", borderRadius: 10,
+                    border: "none", background: saving ? "var(--muted)" : "var(--ink)", color: "var(--cream)",
+                    fontSize: 13, fontWeight: 600, cursor: saving ? "default" : "pointer",
+                  }}
+                >
+                  {saving ? "Guardando..." : "Agregar al registro"}
                 </button>
               </div>
-            );
-          })}
+            </>
+          )}
 
-          {/* Running totals */}
-          <div style={{
-            background: "var(--beige)", borderRadius: 10, padding: 12,
-            marginBottom: 14, fontSize: 12,
-            display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6,
-          }}>
-            {[
-              { label: "Kcal",     val: Math.round(runningTotals.kcal) },
-              { label: "Proteina", val: `${Math.round(runningTotals.protein * 10) / 10}g` },
-              { label: "Carbos",   val: `${Math.round(runningTotals.carbs * 10) / 10}g` },
-              { label: "Grasa",    val: `${Math.round(runningTotals.fat * 10) / 10}g` },
-              { label: "Fibra",    val: `${Math.round(runningTotals.fiber * 10) / 10}g` },
-              { label: "Azucar",   val: `${Math.round(runningTotals.sugar * 10) / 10}g` },
-            ].map(({ label, val }) => (
-              <div key={label} style={{ textAlign: "center" }}>
-                <p style={{ fontSize: 10, color: "var(--muted)" }}>{label}</p>
-                <p style={{ fontWeight: 600, color: "var(--ink)" }}>{val}</p>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              onClick={() => setSelectorItems([])}
-              style={{
-                flex: 1, padding: "10px 0", borderRadius: 10,
-                border: "1px solid var(--border)", background: "var(--beige)",
-                fontSize: 13, cursor: "pointer", color: "var(--muted)",
-              }}
-            >
-              Limpiar
-            </button>
-            <button
-              onClick={handleLog}
-              disabled={saving}
-              style={{
-                flex: 2, padding: "10px 0", borderRadius: 10,
-                border: "none", background: saving ? "var(--muted)" : "var(--ink)", color: "var(--cream)",
-                fontSize: 13, fontWeight: 600, cursor: saving ? "default" : "pointer",
-              }}
-            >
-              {saving ? "Guardando..." : "Agregar al registro"}
-            </button>
-          </div>
+          {selectorItems.length === 0 && !query.trim() && (
+            <p style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", padding: "24px 0" }}>
+              Busca un alimento para anadir al registro.
+            </p>
+          )}
         </>
       )}
+    </div>
+  );
+}
 
-      {selectorItems.length === 0 && !query.trim() && (
-        <p style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", padding: "24px 0" }}>
-          Busca un alimento para anadir al registro.
-        </p>
-      )}
+function ChatView({
+  history, input, loading, onSend, onInputChange,
+}: {
+  history: ChatMessage[];
+  input: string;
+  loading: boolean;
+  onSend: () => void;
+  onInputChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <div style={{
+        minHeight: 180, maxHeight: 280, overflowY: "auto",
+        marginBottom: 12, display: "flex", flexDirection: "column", gap: 8,
+      }}>
+        {history.length === 0 ? (
+          <p style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", padding: "24px 0" }}>
+            Describe lo que comiste...
+          </p>
+        ) : (
+          history.map((msg, i) => (
+            <div key={i} style={{
+              alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
+              background: msg.role === "user" ? "var(--ink)" : "var(--beige)",
+              color: msg.role === "user" ? "var(--cream)" : "var(--ink)",
+              borderRadius: 10, padding: "8px 12px",
+              fontSize: 13, maxWidth: "80%",
+            }}>
+              {msg.content}
+            </div>
+          ))
+        )}
+        {loading && (
+          <div style={{ alignSelf: "flex-start", fontSize: 12, color: "var(--muted)", padding: "4px 0" }}>
+            ...
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: "flex", gap: 8 }}>
+        <input
+          type="text"
+          value={input}
+          placeholder="2 huevos y avena..."
+          onChange={(e) => onInputChange(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") onSend(); }}
+          disabled={loading}
+          style={{
+            flex: 1, padding: "10px 12px", borderRadius: 10,
+            border: "1px solid var(--border)", background: "var(--cream)",
+            fontSize: 13, fontFamily: "inherit", outline: "none",
+          }}
+        />
+        <button
+          onClick={onSend}
+          disabled={loading || !input.trim()}
+          style={{
+            padding: "10px 16px", borderRadius: 10, border: "none",
+            background: loading || !input.trim() ? "var(--muted)" : "var(--ink)",
+            color: "var(--cream)", fontSize: 13, fontWeight: 600,
+            cursor: loading || !input.trim() ? "default" : "pointer",
+          }}
+        >
+          Enviar
+        </button>
+      </div>
     </div>
   );
 }

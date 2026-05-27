@@ -105,3 +105,8 @@ export interface Suggestion {
   weight_g: number;
   reason: string;
 }
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
