@@ -1,14 +1,18 @@
-import { useState } from "react";
-import { loadMeals, getTodayCET, type LoggedMeal, type MacroTotals } from "./types";
+import { useState, useEffect } from "react";
+import { getTodayCET, type LoggedMeal, type MacroTotals } from "./types";
+import { api } from "../../api/client";
 
 export default function HistoryTab() {
-  const [allMeals] = useState<LoggedMeal[]>(loadMeals);
-  const [selectedDate, setSelectedDate] = useState(getTodayCET);
+  const [meals, setMeals] = useState<LoggedMeal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(getTodayCET());
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const mealsForDate = [...allMeals.filter((m) => m.date === selectedDate)].sort(
-    (a, b) => b.time.localeCompare(a.time)
-  );
+  useEffect(() => {
+    api.getMeals(selectedDate).then(setMeals).finally(() => setLoading(false));
+  }, [selectedDate]);
+
+  const mealsForDate = [...meals].sort((a, b) => b.time.localeCompare(a.time));
 
   const dayTotal: MacroTotals = mealsForDate.reduce(
     (acc, meal) => ({
@@ -32,13 +36,13 @@ export default function HistoryTab() {
 
   return (
     <div>
-      {/* Date picker */}
       <input
         type="date"
         value={selectedDate}
         max={getTodayCET()}
         onChange={(e) => {
           setSelectedDate(e.target.value);
+          setLoading(true);
           setExpandedId(null);
         }}
         style={{
@@ -53,13 +57,16 @@ export default function HistoryTab() {
         {dateDisplay}
       </p>
 
-      {mealsForDate.length === 0 ? (
+      {loading ? (
+        <p style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", padding: "24px 0" }}>
+          Cargando...
+        </p>
+      ) : mealsForDate.length === 0 ? (
         <p style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", padding: "24px 0" }}>
           Sin registros para esta fecha.
         </p>
       ) : (
         <>
-          {/* Day total */}
           <div style={{
             background: "var(--cream)", borderRadius: 10, border: "1px solid var(--border)",
             padding: 12, marginBottom: 12,
@@ -80,7 +87,6 @@ export default function HistoryTab() {
             ))}
           </div>
 
-          {/* Meal list */}
           {mealsForDate.map((meal) => (
             <HistoryMealCard
               key={meal.id}

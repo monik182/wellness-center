@@ -65,38 +65,6 @@ export function getCurrentTimeCET(): string {
   }).format(new Date());
 }
 
-// localStorage helpers
-export function loadMeals(): LoggedMeal[] {
-  try {
-    return JSON.parse(localStorage.getItem("ct_meals") ?? "[]") as LoggedMeal[];
-  } catch {
-    return [];
-  }
-}
-
-export function saveMeals(meals: LoggedMeal[]): void {
-  localStorage.setItem("ct_meals", JSON.stringify(meals));
-}
-
-export function loadGymDay(): boolean {
-  try {
-    const stored = localStorage.getItem("ct_gym_day");
-    if (!stored) return false;
-    const { active, date } = JSON.parse(stored) as { active: boolean; date: string };
-    if (date !== getTodayCET()) {
-      saveGymDay(false);
-      return false;
-    }
-    return active;
-  } catch {
-    return false;
-  }
-}
-
-export function saveGymDay(active: boolean): void {
-  localStorage.setItem("ct_gym_day", JSON.stringify({ active, date: getTodayCET() }));
-}
-
 export function macroScale(
   food: TrackerFood,
   weight_g: number

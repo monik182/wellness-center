@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
 import { TRACKER_FOODS } from "../../data/calorieTrackerFoods";
 import {
-  loadMeals, saveMeals, getTodayCET, getCurrentTimeCET,
+  getTodayCET, getCurrentTimeCET,
   macroScale, sumTotals,
   type TrackerFood, type LoggedFoodItem, type LoggedMeal,
 } from "./types";
+import { api } from "../../api/client";
 
 export interface SelectorItem {
   foodId: string;
@@ -19,6 +20,7 @@ interface Props {
 
 export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }: Props) {
   const [query, setQuery] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return TRACKER_FOODS;
@@ -63,8 +65,9 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
     });
   }
 
-  function handleLog() {
-    if (selectorItems.length === 0) return;
+  async function handleLog() {
+    if (selectorItems.length === 0 || saving) return;
+    setSaving(true);
     const items = buildLoggedItems();
     const totals = sumTotals(items);
     const meal: LoggedMeal = {
@@ -74,8 +77,8 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
       items,
       totals,
     };
-    const existing = loadMeals();
-    saveMeals([...existing, meal]);
+    await api.addMeal(meal);
+    setSaving(false);
     setSelectorItems([]);
     onLogged();
   }
@@ -238,13 +241,14 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
             </button>
             <button
               onClick={handleLog}
+              disabled={saving}
               style={{
                 flex: 2, padding: "10px 0", borderRadius: 10,
-                border: "none", background: "var(--ink)", color: "var(--cream)",
-                fontSize: 13, fontWeight: 600, cursor: "pointer",
+                border: "none", background: saving ? "var(--muted)" : "var(--ink)", color: "var(--cream)",
+                fontSize: 13, fontWeight: 600, cursor: saving ? "default" : "pointer",
               }}
             >
-              Agregar al registro
+              {saving ? "Guardando..." : "Agregar al registro"}
             </button>
           </div>
         </>

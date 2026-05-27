@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TRACKER_FOODS } from "../../data/calorieTrackerFoods";
 import {
-  loadMeals, saveMeals, loadGymDay, saveGymDay,
   sumMealTotals, getTodayCET, TARGETS, macroScale,
   type LoggedMeal, type MacroTotals, type LoggedFoodItem,
 } from "./types";
+import { api } from "../../api/client";
 
 // ─── Macro progress bar ───────────────────────────────────────────
 function MacroBar({
@@ -14,7 +14,7 @@ function MacroBar({
   consumed: number;
   target: number;
   unit: string;
-  danger?: boolean; // for sugar: red if over instead of green
+  danger?: boolean;
 }) {
   const pct = Math.min((consumed / target) * 100, 100);
   const over = consumed > target;
@@ -90,7 +90,6 @@ function MealCard({
 
       {expanded && (
         <div style={{ padding: "0 12px 12px" }}>
-          {/* Item breakdown */}
           {meal.items.map((item, i) => (
             <div key={i} style={{
               display: "flex", justifyContent: "space-between",
@@ -101,7 +100,6 @@ function MealCard({
               <span>{Math.round(item.kcal)} kcal · {Math.round(item.protein * 10) / 10}g P · {Math.round(item.carbs * 10) / 10}g C</span>
             </div>
           ))}
-          {/* Totals row */}
           <div style={{
             display: "grid", gridTemplateColumns: "repeat(3, 1fr)",
             gap: 6, marginTop: 10, fontSize: 11,
@@ -120,7 +118,6 @@ function MealCard({
               </div>
             ))}
           </div>
-          {/* Actions */}
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
             <button
               onClick={onEdit}
@@ -170,7 +167,6 @@ function EditMealModal({
         const scaled = macroScale(food, w);
         return { ...item, weight_g: w, ...scaled };
       }
-      // fallback: scale proportionally from original
       const ratio = w / item.weight_g;
       return {
         ...item,
@@ -302,45 +298,48 @@ function EditMealModal({
 
 // ─── Main TodayTab ────────────────────────────────────────────────
 export default function TodayTab({ onLogMore }: { onLogMore: () => void }) {
-  const [meals, setMeals] = useState<LoggedMeal[]>(loadMeals);
-  const [gymDay, setGymDay] = useState<boolean>(loadGymDay);
+  const [meals, setMeals] = useState<LoggedMeal[]>([]);
+  const [gymDay, setGymDay] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingMeal, setEditingMeal] = useState<LoggedMeal | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const today = getTodayCET();
 
-  const todayMeals = [...meals.filter((m) => m.date === today)].sort(
-    (a, b) => b.time.localeCompare(a.time)
-  );
+  useEffect(() => {
+    Promise.all([api.getMeals(today), api.getGymDay()])
+      .then(([m, g]) => { setMeals(m); setGymDay(g.active); })
+      .finally(() => setLoading(false));
+  }, [today]);
 
+  const todayMeals = [...meals].sort((a, b) => b.time.localeCompare(a.time));
   const targets = gymDay ? TARGETS.gym : TARGETS.regular;
   const consumed: MacroTotals = sumMealTotals(todayMeals);
 
-  function handleGymToggle(checked: boolean) {
+  async function handleGymToggle(checked: boolean) {
     setGymDay(checked);
-    saveGymDay(checked);
+    await api.setGymDay(checked, today);
   }
 
-  function handleDelete(id: string) {
-    const updated = meals.filter((m) => m.id !== id);
-    setMeals(updated);
-    saveMeals(updated);
+  async function handleDelete(id: string) {
+    await api.deleteMeal(id);
+    setMeals((prev) => prev.filter((m) => m.id !== id));
     setConfirmDeleteId(null);
     setExpandedId(null);
   }
 
-  function handleSaveEdit(updated: LoggedMeal) {
-    // If all items removed, delete the meal
-    const updatedMeals = updated.items.length === 0
-      ? meals.filter((m) => m.id !== updated.id)
-      : meals.map((m) => (m.id === updated.id ? updated : m));
-    setMeals(updatedMeals);
-    saveMeals(updatedMeals);
+  async function handleSaveEdit(updated: LoggedMeal) {
+    if (updated.items.length === 0) {
+      await api.deleteMeal(updated.id);
+      setMeals((prev) => prev.filter((m) => m.id !== updated.id));
+    } else {
+      await api.updateMeal(updated.id, { items: updated.items, totals: updated.totals, time: updated.time });
+      setMeals((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+    }
     setEditingMeal(null);
   }
 
-  // Format date for header display
   const [y, mo, d] = today.split("-").map(Number);
   const dateDisplay = new Date(y, mo - 1, d).toLocaleDateString("es-ES", {
     weekday: "long",
@@ -350,7 +349,6 @@ export default function TodayTab({ onLogMore }: { onLogMore: () => void }) {
 
   return (
     <div>
-      {/* Header */}
       <div style={{
         display: "flex", justifyContent: "space-between", alignItems: "center",
         marginBottom: 14,
@@ -368,7 +366,6 @@ export default function TodayTab({ onLogMore }: { onLogMore: () => void }) {
         </label>
       </div>
 
-      {/* Macro summary */}
       <div style={{
         background: "var(--cream)", borderRadius: 12, padding: 14,
         border: "1px solid var(--border)", marginBottom: 16,
@@ -384,8 +381,11 @@ export default function TodayTab({ onLogMore }: { onLogMore: () => void }) {
         <MacroBar label="Azucar"   consumed={consumed.sugar}   target={targets.sugar}   unit="g" danger />
       </div>
 
-      {/* Logged meals */}
-      {todayMeals.length === 0 ? (
+      {loading ? (
+        <p style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", padding: "16px 0" }}>
+          Cargando...
+        </p>
+      ) : todayMeals.length === 0 ? (
         <p style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", padding: "16px 0 10px" }}>
           Sin registros hoy.
         </p>
@@ -414,7 +414,6 @@ export default function TodayTab({ onLogMore }: { onLogMore: () => void }) {
         + Registrar comida
       </button>
 
-      {/* Delete confirmation modal */}
       {confirmDeleteId && (
         <div style={{
           position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)",
@@ -454,7 +453,6 @@ export default function TodayTab({ onLogMore }: { onLogMore: () => void }) {
         </div>
       )}
 
-      {/* Edit modal */}
       {editingMeal && (
         <EditMealModal
           meal={editingMeal}
