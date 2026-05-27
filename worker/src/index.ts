@@ -2,6 +2,7 @@ interface Env {
   DB: D1Database;
   API_KEY: string;
   ANTHROPIC_API_KEY: string;
+  OPENAI_API_KEY: string;
 }
 
 interface SuggestRequest {
@@ -254,6 +255,28 @@ Rules:
       } catch {
         return json({ type: "message", text: "No entendí. Intenta de nuevo." });
       }
+    }
+
+    // /api/transcribe
+    if (path === "/api/transcribe" && method === "POST") {
+      const audioBuffer = await request.arrayBuffer();
+      const contentType = request.headers.get("Content-Type") ?? "audio/webm";
+
+      const formData = new FormData();
+      formData.append("file", new Blob([audioBuffer], { type: contentType }), "audio.webm");
+      formData.append("model", "whisper-1");
+      formData.append("language", "es");
+
+      const resp = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${env.OPENAI_API_KEY}` },
+        body: formData,
+      });
+
+      if (!resp.ok) return err("Whisper API error", 502);
+
+      const result = await resp.json() as { text: string };
+      return json({ text: result.text });
     }
 
     return err("Not found", 404);

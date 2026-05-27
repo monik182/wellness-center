@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { TRACKER_FOODS } from "../../data/calorieTrackerFoods";
 import {
   getTodayCET, getCurrentTimeCET,
@@ -340,6 +340,41 @@ function ChatView({
   onSend: () => void;
   onInputChange: (v: string) => void;
 }) {
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<BlobPart[]>([]);
+
+  async function toggleRecording() {
+    if (recording) {
+      mediaRecorderRef.current?.stop();
+      setRecording(false);
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      chunksRef.current = [];
+      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunksRef.current, { type: mr.mimeType });
+        setTranscribing(true);
+        try {
+          const result = await api.transcribe(blob);
+          onInputChange(result.text);
+        } finally {
+          setTranscribing(false);
+        }
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+      setRecording(true);
+    } catch {
+      // mic permission denied or unavailable
+    }
+  }
+
   return (
     <div>
       <div style={{
@@ -377,13 +412,26 @@ function ChatView({
           placeholder="2 huevos y avena..."
           onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") onSend(); }}
-          disabled={loading}
+          disabled={loading || transcribing}
           style={{
             flex: 1, padding: "10px 12px", borderRadius: 10,
             border: "1px solid var(--border)", background: "var(--cream)",
             fontSize: 13, fontFamily: "inherit", outline: "none",
           }}
         />
+        <button
+          onClick={toggleRecording}
+          disabled={loading || transcribing}
+          title={recording ? "Detener grabacion" : "Grabar voz"}
+          style={{
+            padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)",
+            background: recording ? "#e53e3e" : "var(--beige)",
+            color: recording ? "white" : "var(--muted)",
+            fontSize: 16, cursor: loading || transcribing ? "default" : "pointer", flexShrink: 0,
+          }}
+        >
+          {transcribing ? "..." : recording ? "\u25A0" : "\uD83C\uDF99\uFE0F"}
+        </button>
         <button
           onClick={onSend}
           disabled={loading || !input.trim()}

@@ -39,6 +39,13 @@ export const api = {
       body: JSON.stringify(payload),
     }).then((r) => r.json()),
 
+  transcribe: (blob: Blob): Promise<{ text: string }> =>
+    fetch(`${BASE}/api/transcribe`, {
+      method: "POST",
+      headers: { "X-Api-Key": KEY, "Content-Type": blob.type },
+      body: blob,
+    }).then((r) => r.json()),
+
   chat: (
     messages: ChatMessage[],
     foods: Array<{ id: string; name: string; defaultWeight_g: number }>
