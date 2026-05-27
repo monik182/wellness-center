@@ -8,6 +8,7 @@ import PrepPage     from "./pages/PrepPage";
 import ShoppingPage from "./pages/ShoppingPage";
 import RulesPage        from "./pages/RulesPage";
 import MacroTargetsPage from "./pages/MacroTargetsPage";
+import CalorieTrackerPage from "./pages/CalorieTrackerPage";
 import "./styles/global.css";
 
 export default function App() {
@@ -22,7 +23,8 @@ export default function App() {
           <Route path="/prep"           element={<PrepPage />}         />
           <Route path="/shopping"       element={<ShoppingPage />}     />
           <Route path="/rules"          element={<RulesPage />}        />
-          <Route path="/macro-targets"  element={<MacroTargetsPage />} />
+          <Route path="/macro-targets"      element={<MacroTargetsPage />}      />
+          <Route path="/calorie-tracker"    element={<CalorieTrackerPage />}    />
         </Routes>
       </Layout>
     </BrowserRouter>

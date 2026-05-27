@@ -15,7 +15,7 @@ No test runner configured.
 
 ## Architecture
 
-React 19 SPA with Vite, TypeScript (strict), React Router v7. Deployed to Vercel (all routes rewrite to `/index.html`).
+React 19 SPA with Vite, TypeScript (strict), React Router v7. Deployed to Cloudflare Pages (all routes rewrite to `/index.html`).
 
 **Data layer** (`src/data/`): Static TypeScript data files, no API calls.
 - `foods.ts` — exports `Food[]` with typed `FoodGroup` and `FoodTag` unions, macros (kcal, protein, carbs, fat, fiber).

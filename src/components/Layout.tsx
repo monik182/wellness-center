@@ -8,7 +8,8 @@ const NAV = [
   { to: "/foods",        label: "Alimentos", emoji: "📊" },
   { to: "/prep",         label: "Prep",      emoji: "🔪" },
   { to: "/shopping",     label: "Compras",   emoji: "🛒" },
-  { to: "/rules",        label: "Reglas",    emoji: "📏" },
+  { to: "/rules",            label: "Reglas",   emoji: "📏" },
+  { to: "/calorie-tracker", label: "Tracker",  emoji: "📝" },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
