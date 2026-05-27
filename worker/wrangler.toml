@@ -1,0 +1,8 @@
+name = "wellness-center-api"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wellness-center-db"
+database_id = "24c2ecd3-6715-44e0-9711-0da3f9f7d9e3"
