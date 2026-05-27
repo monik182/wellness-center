@@ -113,15 +113,28 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
         TRACKER_FOODS.map((f) => ({ id: f.id, name: f.name, defaultWeight_g: f.defaultWeight_g }))
       );
       if (result.type === "items") {
-        const merged = [...selectorItems];
-        for (const add of result.items) {
-          const idx = merged.findIndex((s) => s.foodId === add.foodId);
-          if (idx >= 0) merged[idx] = { ...merged[idx], weight_g: merged[idx].weight_g + add.weight_g };
-          else merged.push({ foodId: add.foodId, weight_g: add.weight_g });
-        }
-        setSelectorItems(merged);
+        const loggedItems: LoggedFoodItem[] = result.items.map((add) => {
+          const food = TRACKER_FOODS.find((f) => f.id === add.foodId)!;
+          return {
+            foodId: add.foodId,
+            name: add.name,
+            weight_g: add.weight_g,
+            ...macroScale(food, add.weight_g),
+          };
+        });
+        const totals = sumTotals(loggedItems);
+        const meal: LoggedMeal = {
+          id: crypto.randomUUID(),
+          date: getTodayCET(),
+          time: getCurrentTimeCET(),
+          items: loggedItems,
+          totals,
+        };
+        await api.addMeal(meal);
+        onLogged();
+        setSelectorItems([]);
         const names = result.items.map((i) => `${i.name} (${i.weight_g}g)`).join(", ");
-        setChatHistory([...newHistory, { role: "assistant", content: `Agregado: ${names}` }]);
+        setChatHistory([...newHistory, { role: "assistant", content: `Registrado: ${names}` }]);
       } else {
         setChatHistory([...newHistory, { role: "assistant", content: result.text }]);
       }
