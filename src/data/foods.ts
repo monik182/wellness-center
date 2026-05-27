@@ -505,6 +505,30 @@ export const FOODS: Food[] = [
     kcal: 170, protein: 3, carbs: 20, fat: 9, sugar: 0, fiber: 3.5,
     tags: ["Alta fibra", "⚠️ Calórico"],
   },
+  {
+    name: "Mini Helado Magnum Clasico",
+    group: "Extra",
+    portion: "1 unidad (~42g)",
+    kcal: 119,
+    protein: 2.2,
+    carbs: 14.8,
+    fat: 5.8,
+    sugar: 14.8,
+    fiber: 0,
+    tags: ["⚠️ Calórico", "Azúcar", "Calorías vacías"],
+  },
+  {
+    name: "Papas fritas con aceite de oliva 29%",
+    group: "Extra",
+    portion: "100g",
+    kcal: 508,
+    protein: 7.3,
+    carbs: 52,
+    fat: 29,
+    sugar: 0.5,
+    fiber: 4.7,
+    tags: ["⚠️ Calórico", "Calorías vacías"],
+  },
 
   // ─── ELIMINATED ──────────────────────────────────────────────────
   {
@@ -544,10 +568,10 @@ export interface WheelItem {
 }
 
 export const WHEEL_CATEGORY_META: Record<WheelCategory, { label: string; color: string; skippable: boolean }> = {
-  protein: { label: "Proteína",      color: "#FFD1A1", skippable: false },
-  veggie:  { label: "Veggie / Fibra", color: "#B2D8B2", skippable: false },
-  carb:    { label: "Carbohidrato",  color: "#BDE0FE", skippable: true  },
-  fruit:   { label: "Fruta / Postre", color: "#F5C6D0", skippable: false },
+  protein: { label: "Proteína", color: "#FFD1A1", skippable: false },
+  veggie: { label: "Veggie / Fibra", color: "#B2D8B2", skippable: false },
+  carb: { label: "Carbohidrato", color: "#BDE0FE", skippable: true },
+  fruit: { label: "Fruta / Postre", color: "#F5C6D0", skippable: false },
 };
 
 export const WHEEL_STEPS: WheelCategory[] = ["protein", "veggie", "carb", "fruit"];
@@ -571,26 +595,26 @@ export const GROUP_ORDER: FoodGroup[] = [
 ];
 
 export const GROUP_COLORS: Record<FoodGroup, { bg: string; text: string }> = {
-  "Proteína":      { bg: "#FFD1A1", text: "#1A1A1A" },
-  "Carbohidrato":  { bg: "#BDE0FE", text: "#1A1A1A" },
-  "Verdura":       { bg: "#B2D8B2", text: "#1A1A1A" },
-  "Fruta":         { bg: "#F5C6D0", text: "#1A1A1A" },
-  "Lácteo":        { bg: "#FFF0E5", text: "#1A1A1A" },
-  "Grasa":         { bg: "#E8E0D4", text: "#1A1A1A" },
-  "Extra":         { bg: "#E0BBE4", text: "#1A1A1A" },
-  "❌ Eliminado":  { bg: "#D4D4D4", text: "#666"    },
+  "Proteína": { bg: "#FFD1A1", text: "#1A1A1A" },
+  "Carbohidrato": { bg: "#BDE0FE", text: "#1A1A1A" },
+  "Verdura": { bg: "#B2D8B2", text: "#1A1A1A" },
+  "Fruta": { bg: "#F5C6D0", text: "#1A1A1A" },
+  "Lácteo": { bg: "#FFF0E5", text: "#1A1A1A" },
+  "Grasa": { bg: "#E8E0D4", text: "#1A1A1A" },
+  "Extra": { bg: "#E0BBE4", text: "#1A1A1A" },
+  "❌ Eliminado": { bg: "#D4D4D4", text: "#666" },
 };
 
 export const TAG_COLORS: Partial<Record<FoodTag, { bg: string; text: string }>> = {
-  "Alta proteína":      { bg: "#FFD1A1", text: "#1A1A1A" },
-  "Alta fibra":         { bg: "#B2D8B2", text: "#1A1A1A" },
-  "Baja cal":           { bg: "#BDE0FE", text: "#1A1A1A" },
-  "Omega-3":            { bg: "#BDE0FE", text: "#1A1A1A" },
-  "Pre-workout":        { bg: "#E0BBE4", text: "#1A1A1A" },
+  "Alta proteína": { bg: "#FFD1A1", text: "#1A1A1A" },
+  "Alta fibra": { bg: "#B2D8B2", text: "#1A1A1A" },
+  "Baja cal": { bg: "#BDE0FE", text: "#1A1A1A" },
+  "Omega-3": { bg: "#BDE0FE", text: "#1A1A1A" },
+  "Pre-workout": { bg: "#E0BBE4", text: "#1A1A1A" },
   "Almidón resistente": { bg: "#BDE0FE", text: "#1A1A1A" },
-  "⚠️ Calórico":        { bg: "#F5C6D0", text: "#1A1A1A" },
-  "⚠️ Calóricos":       { bg: "#F5C6D0", text: "#1A1A1A" },
-  "⚠️ Calórica":        { bg: "#F5C6D0", text: "#1A1A1A" },
-  "Calorías vacías":    { bg: "#D4D4D4", text: "#666"    },
-  "Azúcar":             { bg: "#D4D4D4", text: "#666"    },
+  "⚠️ Calórico": { bg: "#F5C6D0", text: "#1A1A1A" },
+  "⚠️ Calóricos": { bg: "#F5C6D0", text: "#1A1A1A" },
+  "⚠️ Calórica": { bg: "#F5C6D0", text: "#1A1A1A" },
+  "Calorías vacías": { bg: "#D4D4D4", text: "#666" },
+  "Azúcar": { bg: "#D4D4D4", text: "#666" },
 };
