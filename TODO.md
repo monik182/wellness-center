@@ -3,6 +3,7 @@ A Calculator of Macros
 I will upload my meals with exact measurements, the app will calculate the macros and show them in a chart and show me the difference from my target macros.
 
 V2: 
+Suggest should be refreshed when something changes in the tracker. Cache the suggestions.
 Smarter suggestions based on my goals and current progress
 Better UI feedback when dictating (show listening state, add a send button)
 Improve Tracker ui
