@@ -1,4 +1,4 @@
-import type { LoggedMeal } from "../pages/calorie-tracker/types";
+import type { LoggedMeal, Suggestion, TrackerFood, MacroTotals } from "../pages/calorie-tracker/types";
 
 const BASE = import.meta.env.VITE_API_URL ?? "";
 const KEY  = import.meta.env.VITE_API_KEY  ?? "";
@@ -25,4 +25,17 @@ export const api = {
 
   setGymDay: (active: boolean, date: string): Promise<void> =>
     fetch(`${BASE}/api/gym-day`, { method: "PUT", headers: headers(), body: JSON.stringify({ active, date }) }).then(() => {}),
+
+  getSuggestions: (payload: {
+    remaining: MacroTotals;
+    time: string;
+    is_gym_day: boolean;
+    meals_today: string[];
+    foods: TrackerFood[];
+  }): Promise<Suggestion[]> =>
+    fetch(`${BASE}/api/suggest`, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify(payload),
+    }).then((r) => r.json()),
 };

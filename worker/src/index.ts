@@ -1,6 +1,31 @@
 interface Env {
   DB: D1Database;
   API_KEY: string;
+  ANTHROPIC_API_KEY: string;
+}
+
+interface SuggestRequest {
+  remaining: { kcal: number; protein: number; carbs: number; fat: number; fiber: number; sugar: number };
+  time: string;
+  is_gym_day: boolean;
+  meals_today: string[];
+  foods: Array<{
+    id: string;
+    name: string;
+    group: string;
+    defaultWeight_g: number;
+    kcalPer100g: number;
+    proteinPer100g: number;
+    carbsPer100g: number;
+    fatPer100g: number;
+  }>;
+}
+
+interface Suggestion {
+  foodId: string;
+  name: string;
+  weight_g: number;
+  reason: string;
 }
 
 const CORS_HEADERS = {
@@ -107,6 +132,69 @@ export default {
         ).bind(body.active ? 1 : 0, body.date).run();
         return json({ ok: true });
       }
+    }
+
+    // /api/suggest
+    if (path === "/api/suggest" && method === "POST") {
+      const body = await request.json() as SuggestRequest;
+
+      const foodLines = body.foods
+        .map((f) => `${f.id}|${f.name}|${f.group}|${f.defaultWeight_g}g|${f.kcalPer100g}kcal|${f.proteinPer100g}gP|${f.carbsPer100g}gC|${f.fatPer100g}gF`)
+        .join("\n");
+
+      const alreadyEaten = body.meals_today.length > 0
+        ? body.meals_today.join(", ")
+        : "nothing yet";
+
+      const prompt = `You are a nutrition assistant. Suggest 3-5 foods to eat next based on remaining macro targets.
+
+Remaining macros for today:
+- Calories: ${Math.round(body.remaining.kcal)} kcal
+- Protein: ${Math.round(body.remaining.protein)}g
+- Carbs: ${Math.round(body.remaining.carbs)}g
+- Fat: ${Math.round(body.remaining.fat)}g
+
+Current time: ${body.time}
+Gym day: ${body.is_gym_day ? "yes" : "no"}
+Already eaten today: ${alreadyEaten}
+
+Available foods (id|name|group|default_g|kcal/100g|protein/100g|carbs/100g|fat/100g):
+${foodLines}
+
+Respond ONLY with valid JSON, no explanation:
+{"suggestions":[{"foodId":"...","name":"...","weight_g":N,"reason":"..."}]}
+
+Rules:
+- weight_g should be close to default_g (reasonable portion)
+- reason must be in Spanish, max 8 words, focus on which macro it helps
+- prioritize foods that fill the largest remaining macro gaps
+- if remaining kcal <= 200, suggest only 1-2 light options
+- do not suggest foods from group "❌ Eliminado"`;
+
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": env.ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 512,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+
+      if (!resp.ok) return err("Anthropic API error", 502);
+
+      const aiResp = await resp.json() as { content: Array<{ text: string }> };
+      const text = aiResp.content[0]?.text ?? "{}";
+
+      const match = text.match(/\{[\s\S]*\}/);
+      if (!match) return err("Invalid AI response", 502);
+
+      const parsed = JSON.parse(match[0]) as { suggestions: Suggestion[] };
+      return json(parsed.suggestions ?? []);
     }
 
     return err("Not found", 404);

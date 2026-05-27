@@ -98,3 +98,10 @@ export function sumTotals(items: LoggedFoodItem[]): MacroTotals {
 export function sumMealTotals(meals: LoggedMeal[]): MacroTotals {
   return sumTotals(meals.flatMap((m) => m.items));
 }
+
+export interface Suggestion {
+  foodId: string;
+  name: string;
+  weight_g: number;
+  reason: string;
+}

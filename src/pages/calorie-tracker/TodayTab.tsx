@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { TRACKER_FOODS } from "../../data/calorieTrackerFoods";
 import {
-  sumMealTotals, getTodayCET, TARGETS, macroScale,
-  type LoggedMeal, type MacroTotals, type LoggedFoodItem,
+  sumMealTotals, getTodayCET, getCurrentTimeCET, TARGETS, macroScale,
+  type LoggedMeal, type MacroTotals, type LoggedFoodItem, type Suggestion,
 } from "./types";
 import { api } from "../../api/client";
 
@@ -304,12 +304,45 @@ export default function TodayTab({ onLogMore }: { onLogMore: () => void }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingMeal, setEditingMeal] = useState<LoggedMeal | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
 
   const today = getTodayCET();
 
+  async function fetchSuggestions(currentMeals: LoggedMeal[], isGymDay: boolean) {
+    const currentTargets = isGymDay ? TARGETS.gym : TARGETS.regular;
+    const currentConsumed = sumMealTotals(currentMeals);
+    const remaining = {
+      kcal:    currentTargets.kcal    - currentConsumed.kcal,
+      protein: currentTargets.protein - currentConsumed.protein,
+      carbs:   currentTargets.carbs   - currentConsumed.carbs,
+      fat:     currentTargets.fat     - currentConsumed.fat,
+      fiber:   currentTargets.fiber   - currentConsumed.fiber,
+      sugar:   currentTargets.sugar   - currentConsumed.sugar,
+    };
+    const meals_today = currentMeals.flatMap((m) => m.items.map((i) => i.name));
+    setSuggestionsLoading(true);
+    try {
+      const result = await api.getSuggestions({
+        remaining,
+        time: getCurrentTimeCET(),
+        is_gym_day: isGymDay,
+        meals_today,
+        foods: TRACKER_FOODS,
+      });
+      setSuggestions(result);
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  }
+
   useEffect(() => {
     Promise.all([api.getMeals(today), api.getGymDay()])
-      .then(([m, g]) => { setMeals(m); setGymDay(g.active); })
+      .then(([m, g]) => {
+        setMeals(m);
+        setGymDay(g.active);
+        fetchSuggestions(m, g.active);
+      })
       .finally(() => setLoading(false));
   }, [today]);
 
@@ -320,24 +353,30 @@ export default function TodayTab({ onLogMore }: { onLogMore: () => void }) {
   async function handleGymToggle(checked: boolean) {
     setGymDay(checked);
     await api.setGymDay(checked, today);
+    fetchSuggestions(meals, checked);
   }
 
   async function handleDelete(id: string) {
     await api.deleteMeal(id);
-    setMeals((prev) => prev.filter((m) => m.id !== id));
+    const newMeals = meals.filter((m) => m.id !== id);
+    setMeals(newMeals);
     setConfirmDeleteId(null);
     setExpandedId(null);
+    fetchSuggestions(newMeals, gymDay);
   }
 
   async function handleSaveEdit(updated: LoggedMeal) {
+    let newMeals: LoggedMeal[];
     if (updated.items.length === 0) {
       await api.deleteMeal(updated.id);
-      setMeals((prev) => prev.filter((m) => m.id !== updated.id));
+      newMeals = meals.filter((m) => m.id !== updated.id);
     } else {
       await api.updateMeal(updated.id, { items: updated.items, totals: updated.totals, time: updated.time });
-      setMeals((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+      newMeals = meals.map((m) => (m.id === updated.id ? updated : m));
     }
+    setMeals(newMeals);
     setEditingMeal(null);
+    fetchSuggestions(newMeals, gymDay);
   }
 
   const [y, mo, d] = today.split("-").map(Number);
@@ -380,6 +419,60 @@ export default function TodayTab({ onLogMore }: { onLogMore: () => void }) {
         <MacroBar label="Fibra"    consumed={consumed.fiber}   target={targets.fiber}   unit="g" />
         <MacroBar label="Azucar"   consumed={consumed.sugar}   target={targets.sugar}   unit="g" danger />
       </div>
+
+      {/* AI Suggestions */}
+      {!loading && (
+        <div style={{
+          background: "var(--cream)", borderRadius: 12, padding: 14,
+          border: "1px solid var(--border)", marginBottom: 16,
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+              Sugerencias
+            </p>
+            <button
+              onClick={() => fetchSuggestions(meals, gymDay)}
+              disabled={suggestionsLoading}
+              style={{ background: "none", border: "none", fontSize: 11, color: "var(--muted)", cursor: "pointer", padding: 0 }}
+            >
+              {suggestionsLoading ? "..." : "Actualizar"}
+            </button>
+          </div>
+
+          {suggestionsLoading ? (
+            <p style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", padding: "8px 0" }}>
+              Calculando...
+            </p>
+          ) : suggestions.length === 0 ? (
+            <p style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", padding: "8px 0" }}>
+              Sin sugerencias.
+            </p>
+          ) : (
+            suggestions.map((s) => {
+              const food = TRACKER_FOODS.find((f) => f.id === s.foodId);
+              const macros = food ? macroScale(food, s.weight_g) : null;
+              return (
+                <div key={s.foodId} style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  padding: "8px 0", borderTop: "1px solid var(--border)",
+                }}>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>
+                      {s.name} <span style={{ fontWeight: 400, color: "var(--muted)" }}>({s.weight_g}g)</span>
+                    </p>
+                    <p style={{ fontSize: 11, color: "var(--muted)" }}>{s.reason}</p>
+                  </div>
+                  {macros && (
+                    <p style={{ fontSize: 11, color: "var(--muted)", flexShrink: 0, marginLeft: 8 }}>
+                      {Math.round(macros.kcal)} kcal · {Math.round(macros.protein * 10) / 10}g P
+                    </p>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
 
       {loading ? (
         <p style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", padding: "16px 0" }}>
