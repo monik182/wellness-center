@@ -14,6 +14,7 @@ const PORTION_WEIGHTS: Record<string, number> = {
   "Pavo en lonchas": 80,
   "Pechuga de pollo": 150,
   "Proteína Rossmann": 30,
+  "Protein Elite Vanilla": 30,
   "Salmón ahumado": 50,
   "Salmón fresco": 125,
   // Carbs

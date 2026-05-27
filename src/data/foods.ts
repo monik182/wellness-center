@@ -116,6 +116,13 @@ export const FOODS: Food[] = [
     tags: ["Alta proteína"],
   },
   {
+    name: "Protein Elite Vanilla",
+    group: "Proteína",
+    portion: "1 scoop (30g) con agua",
+    kcal: 113, protein: 23, carbs: 2.1, fat: 1.4, sugar: 1.6, fiber: 0,
+    tags: ["Alta proteína"],
+  },
+  {
     name: "Salmón ahumado",
     group: "Proteína",
     portion: "50g (~3 lonchas)",
@@ -400,7 +407,7 @@ export const FOODS: Food[] = [
     name: "Leche de soya sin azúcar",
     group: "Lácteo",
     portion: "200ml",
-    kcal: 54, protein: 7, carbs: 0.4, fat: 2.6, sugar: 0.2, fiber: 0.6,
+    kcal: 54, protein: 7, carbs: 0.4, fat: 2.6, sugar: 3.6, fiber: 0.6,
     tags: ["Alta proteína", "Baja cal"],
   },
   {
