@@ -242,7 +242,7 @@ export const FOODS: Food[] = [
     group: "Carbohidrato",
     portion: "120g",
     kcal: 140, protein: 5, carbs: 24, fat: 2, sugar: 0.8, fiber: 2.5,
-    tags: [],
+    tags: ["Alta proteína", "Baja cal"],
     wheelCategory: "carb",
   },
   {
@@ -251,13 +251,14 @@ export const FOODS: Food[] = [
     portion: "100g",
     kcal: 125, protein: 8.5, carbs: 22, fat: 0.5, sugar: 0.5, fiber: 7,
     tags: ["Alta fibra", "Alta proteína"],
+    wheelCategory: "carb",
   },
   {
     name: "Totopos de maíz",
     group: "Carbohidrato",
     portion: "30g (~15 totopos)",
     kcal: 140, protein: 2, carbs: 19, fat: 6.5, sugar: 0.3, fiber: 1.5,
-    tags: ["⚠️ Calóricos"],
+    tags: ["⚠️ Calóricos", "Calorías vacías"],
   },
   {
     name: "Wrap de proteína",
@@ -265,6 +266,7 @@ export const FOODS: Food[] = [
     portion: "1 unidad",
     kcal: 130, protein: 12, carbs: 12, fat: 3.5, sugar: 1, fiber: 5,
     tags: ["Alta proteína", "Alta fibra"],
+    wheelCategory: "carb",
   },
   {
     name: "Guisantes finos ultracongelados",
@@ -272,13 +274,14 @@ export const FOODS: Food[] = [
     portion: "100g",
     kcal: 82, protein: 6, carbs: 11, fat: 0.4, sugar: 2.8, fiber: 5,
     tags: ["Baja cal"],
+    wheelCategory: "veggie",
   },
   {
     name: "Pringles naturales",
     group: "Carbohidrato",
     portion: "30g (1 porcion)",
     kcal: 154, protein: 1.7, carbs: 15, fat: 9, sugar: 1.2, fiber: 1.5,
-    tags: [],
+    tags: ["⚠️ Calórico", "Calorías vacías"],
   },
 
   // ─── VEGETABLES ──────────────────────────────────────────────────
@@ -388,7 +391,7 @@ export const FOODS: Food[] = [
     group: "Fruta",
     portion: "1 mediana (~120g)",
     kcal: 100, protein: 1.3, carbs: 23, fat: 0.3, sugar: 14, fiber: 2.6,
-    tags: ["Pre-workout"],
+    tags: ["Pre-workout", "Baja cal"],
     wheelCategory: "fruit",
   },
   {
@@ -396,7 +399,7 @@ export const FOODS: Food[] = [
     group: "Fruta",
     portion: "80g (~12-15)",
     kcal: 50, protein: 0.8, carbs: 12, fat: 0.2, sugar: 10, fiber: 1.6,
-    tags: ["Baja cal"],
+    tags: ["Pre-workout", "Baja cal"],
     wheelCategory: "fruit",
   },
   {
@@ -404,7 +407,7 @@ export const FOODS: Food[] = [
     group: "Fruta",
     portion: "1 mediana (~180g)",
     kcal: 95, protein: 0.5, carbs: 23, fat: 0.3, sugar: 18, fiber: 2.5,
-    tags: [],
+    tags: ["Pre-workout", "Baja cal"],
     wheelCategory: "fruit",
   },
   {
@@ -412,7 +415,7 @@ export const FOODS: Food[] = [
     group: "Fruta",
     portion: "100g (~15-18)",
     kcal: 70, protein: 0.7, carbs: 17, fat: 0.2, sugar: 16, fiber: 0.9,
-    tags: [],
+    tags: ["Pre-workout", "Baja cal"],
     wheelCategory: "fruit",
   },
 
@@ -422,7 +425,7 @@ export const FOODS: Food[] = [
     group: "Lácteo",
     portion: "200ml",
     kcal: 90, protein: 4, carbs: 10, fat: 3.5, sugar: 7, fiber: 1.5,
-    tags: [],
+    tags: ["Calorías vacías"],
   },
   {
     name: "Leche de soya sin azúcar",
@@ -436,7 +439,7 @@ export const FOODS: Food[] = [
     group: "Lácteo",
     portion: "10g (~1 cdita)",
     kcal: 74, protein: 0.1, carbs: 0, fat: 8.1, sugar: 0, fiber: 0,
-    tags: ["⚠️ Calórica"],
+    tags: ["⚠️ Calórica", "Calorías vacías"],
   },
   {
     name: "Queso cheddar",
@@ -487,14 +490,14 @@ export const FOODS: Food[] = [
     group: "Grasa",
     portion: "5ml",
     kcal: 40, protein: 0, carbs: 0, fat: 4.5, sugar: 0, fiber: 0,
-    tags: [],
+    tags: ["Omega-3"],
   },
   {
     name: "Aceite de oliva (1 cda)",
     group: "Grasa",
     portion: "15ml",
     kcal: 120, protein: 0, carbs: 0, fat: 13.5, sugar: 0, fiber: 0,
-    tags: ["⚠️ Calórico"],
+    tags: ["⚠️ Calórico", "Calorías vacías", "Omega-3"],
   },
   {
     name: "Chía",

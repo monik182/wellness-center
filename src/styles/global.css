@@ -19,6 +19,15 @@
   --pink:         #F5C6D0;
   --lavender:     #E0BBE4;
 
+  /* Macro card colors */
+  --macro-kcal:    #FFD1A1;
+  --macro-protein: #BDE0FE;
+  --macro-carbs:   #F5C6D0;
+  --macro-fat:     #E0BBE4;
+  --macro-fiber:   #B2D8B2;
+  --macro-sugar:   #FFB3B3;
+  --suggestion-bg: var(--peach);
+
   /* shadcn semantic vars — mapped to app palette (oklch) */
   --background:             oklch(0.998 0.003 91.4);   /* cream */
   --foreground:             oklch(0.103 0 0);           /* ink */

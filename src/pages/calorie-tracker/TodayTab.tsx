@@ -11,119 +11,106 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
+import { Pencil, Trash2 } from "lucide-react";
 
-// ─── Macro progress bar ───────────────────────────────────────────
-function MacroBar({
-  label, consumed, target, unit, danger,
+// ── Group emoji map ──────────────────────────────────────────────
+const GROUP_EMOJI: Record<string, string> = {
+  "Proteína":    "🥩",
+  "Carbohidrato": "🍞",
+  "Verdura":     "🥬",
+  "Fruta":       "🍌",
+  "Lácteo":      "🥛",
+  "Grasa":       "🥑",
+  "Extra":       "🧂",
+};
+
+function groupEmoji(group: string): string {
+  return GROUP_EMOJI[group] ?? "🍽️";
+}
+
+// ── Macro card ───────────────────────────────────────────────────
+function MacroCard({
+  label, consumed, target, unit, color,
 }: {
   label: string;
   consumed: number;
   target: number;
   unit: string;
-  danger?: boolean;
+  color: string;
 }) {
   const pct = Math.min((consumed / target) * 100, 100);
   const over = consumed > target;
-  const near = consumed > target * 0.9;
-  const color = over
-    ? "#e57373"
-    : danger && near
-    ? "#ffb74d"
-    : "var(--green)";
+  const barColor = over ? "#e57373" : color;
 
   return (
-    <div className="mb-2.5">
-      <div className="flex justify-between text-[11px] mb-0.5">
-        <span className="font-semibold" style={{ color: "var(--ink)" }}>{label}</span>
-        <span style={{ color: "var(--ink-muted)" }}>
-          {Math.round(consumed * 10) / 10}{unit} / {target}{unit} ({Math.round(pct)}%)
-        </span>
-      </div>
-      <div className="h-[5px] overflow-hidden" style={{ background: "var(--border-color)", borderRadius: 3 }}>
+    <Card>
+      <CardContent className="py-3 px-3">
+        <p
+          className="text-[10px] font-semibold uppercase tracking-wider mb-1"
+          style={{ color: "var(--ink-muted)" }}
+        >
+          {label}
+        </p>
+        <p className="text-xl font-bold leading-tight" style={{ color: "var(--ink)" }}>
+          {Math.round(consumed)}{unit === " kcal" ? "" : "g"}
+        </p>
+        <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-muted)" }}>
+          {Math.round(pct)}% of {target}{unit}
+        </p>
         <div
-          className="h-full transition-[width] duration-300 ease-out"
-          style={{ width: `${pct}%`, backgroundColor: color, borderRadius: 3 }}
-        />
-      </div>
-    </div>
+          className="h-[4px] mt-2 overflow-hidden"
+          style={{ background: "var(--border-color)", borderRadius: 2 }}
+        >
+          <div
+            className="h-full transition-[width] duration-300 ease-out"
+            style={{ width: `${pct}%`, backgroundColor: barColor, borderRadius: 2 }}
+          />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
-// ─── Meal card ────────────────────────────────────────────────────
+// ── Meal card (flat, no expand) ──────────────────────────────────
 function MealCard({
-  meal, expanded, onToggle, onEdit, onDelete,
+  meal, onEdit, onDelete,
 }: {
   meal: LoggedMeal;
-  expanded: boolean;
-  onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
   const t = meal.totals;
   return (
     <Card className="mb-2 overflow-hidden">
-      <button
-        onClick={onToggle}
-        className="w-full text-left px-4 py-3.5 bg-transparent border-0 cursor-pointer flex justify-between items-start"
-      >
-        <div>
-          <p className="text-xs mb-0.5" style={{ color: "var(--ink-muted)" }}>{meal.time}</p>
-          <p className="text-[13px] font-semibold" style={{ color: "var(--ink)" }}>
+      <div className="px-4 py-3 flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] mb-0.5" style={{ color: "var(--ink-muted)" }}>{meal.time}</p>
+          <p className="text-[13px] font-semibold truncate" style={{ color: "var(--ink)" }}>
             {meal.items.map((i) => i.name).join(", ")}
           </p>
+          <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-muted)" }}>
+            {Math.round(t.kcal)} kcal · {Math.round(t.protein)}g protein
+          </p>
         </div>
-        <p className="text-xs shrink-0 ml-2" style={{ color: "var(--ink-muted)" }}>
-          {Math.round(t.kcal)} kcal · {Math.round(t.protein)}g P
-        </p>
-      </button>
-
-      {expanded && (
-        <CardContent className="pt-0 pb-3 px-3">
-          {meal.items.map((item, i) => (
-            <div
-              key={i}
-              className="flex justify-between text-[11px] py-1"
-              style={{ borderTop: "1px solid var(--border-color)", color: "var(--ink-muted)" }}
-            >
-              <span>{item.name} ({item.weight_g}g)</span>
-              <span>{Math.round(item.kcal)} kcal · {Math.round(item.protein * 10) / 10}g P · {Math.round(item.carbs * 10) / 10}g C</span>
-            </div>
-          ))}
-          <div className="grid grid-cols-3 gap-1.5 mt-2.5 text-[11px]">
-            {[
-              { label: "Kcal",     val: Math.round(t.kcal) },
-              { label: "Proteina", val: `${Math.round(t.protein * 10) / 10}g` },
-              { label: "Carbos",   val: `${Math.round(t.carbs * 10) / 10}g` },
-              { label: "Grasa",    val: `${Math.round(t.fat * 10) / 10}g` },
-              { label: "Fibra",    val: `${Math.round(t.fiber * 10) / 10}g` },
-              { label: "Azucar",   val: `${Math.round(t.sugar * 10) / 10}g` },
-            ].map(({ label, val }) => (
-              <div key={label} className="px-2 py-1.5 text-center" style={{ background: "var(--beige)" }}>
-                <p className="mb-0.5" style={{ color: "var(--ink-muted)" }}>{label}</p>
-                <p className="font-semibold" style={{ color: "var(--ink)" }}>{val}</p>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-2 mt-2.5">
-            <Button variant="outline" size="sm" className="flex-1" onClick={onEdit}>
-              Editar
-            </Button>
-            <Button
-              size="sm"
-              className="flex-1 font-semibold"
-              style={{ background: "#fde8e8", color: "#c62828", border: "none" }}
-              onClick={onDelete}
-            >
-              Eliminar
-            </Button>
-          </div>
-        </CardContent>
-      )}
+        <div className="flex gap-1.5 shrink-0 pt-1">
+          <Button variant="outline" size="icon-xs" onClick={onEdit}>
+            <Pencil size={14} />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon-xs"
+            onClick={onDelete}
+            className="text-[#c62828] border-[#fde8e8] hover:bg-[#fde8e8]"
+          >
+            <Trash2 size={14} />
+          </Button>
+        </div>
+      </div>
     </Card>
   );
 }
 
-// ─── Edit modal ───────────────────────────────────────────────────
+// ── Edit modal ───────────────────────────────────────────────────
 function EditMealModal({
   meal, onSave, onClose,
 }: {
@@ -254,7 +241,7 @@ function EditMealModal({
   );
 }
 
-// ─── Main TodayTab ────────────────────────────────────────────────
+// ── Main TodayTab ────────────────────────────────────────────────
 interface TodayTabProps {
   onLogMore: () => void;
   cachedSuggestions: Suggestion[] | null;
@@ -268,7 +255,6 @@ export default function TodayTab({
   const [meals, setMeals] = useState<LoggedMeal[]>([]);
   const [gymDay, setGymDay] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingMeal, setEditingMeal] = useState<LoggedMeal | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>(cachedSuggestions ?? []);
@@ -338,7 +324,6 @@ export default function TodayTab({
     const newMeals = meals.filter((m) => m.id !== id);
     setMeals(newMeals);
     setConfirmDeleteId(null);
-    setExpandedId(null);
     onSuggestionsInvalidated();
     fetchSuggestions(newMeals, gymDay);
   }
@@ -389,8 +374,18 @@ export default function TodayTab({
     month: "long",
   });
 
+  const macros = [
+    { label: "Calorias",  consumed: consumed.kcal,    target: targets.kcal,    unit: " kcal", color: "var(--macro-kcal)" },
+    { label: "Proteina",  consumed: consumed.protein,  target: targets.protein,  unit: "g",     color: "var(--macro-protein)" },
+    { label: "Carbos",    consumed: consumed.carbs,    target: targets.carbs,    unit: "g",     color: "var(--macro-carbs)" },
+    { label: "Grasa",     consumed: consumed.fat,      target: targets.fat,      unit: "g",     color: "var(--macro-fat)" },
+    { label: "Fibra",     consumed: consumed.fiber,    target: targets.fiber,    unit: "g",     color: "var(--macro-fiber)" },
+    { label: "Azucar",    consumed: consumed.sugar,    target: targets.sugar,    unit: "g",     color: "var(--macro-sugar)" },
+  ];
+
   return (
     <div>
+      {/* Header */}
       <div className="flex justify-between items-center mb-5">
         <p className="text-[13px] capitalize" style={{ color: "var(--ink-muted)" }}>
           {dateDisplay}
@@ -405,81 +400,14 @@ export default function TodayTab({
         </label>
       </div>
 
-      <Card className="mb-5">
-        <CardContent className="pt-5 pb-5">
-          <p className="text-[11px] mb-3" style={{ color: "var(--ink-muted)" }}>
-            {gymDay ? "Gym" : "Normal"} · objetivo {targets.kcal} kcal
-          </p>
-          <MacroBar label="Kcal"     consumed={consumed.kcal}    target={targets.kcal}    unit=" kcal" />
-          <MacroBar label="Proteina" consumed={consumed.protein} target={targets.protein} unit="g" />
-          <MacroBar label="Carbos"   consumed={consumed.carbs}   target={targets.carbs}   unit="g" />
-          <MacroBar label="Grasa"    consumed={consumed.fat}     target={targets.fat}     unit="g" />
-          <MacroBar label="Fibra"    consumed={consumed.fiber}   target={targets.fiber}   unit="g" />
-          <MacroBar label="Azucar"   consumed={consumed.sugar}   target={targets.sugar}   unit="g" danger />
-        </CardContent>
-      </Card>
+      {/* Macro card grid */}
+      <div className="grid grid-cols-4 gap-2.5 mb-5">
+        {macros.map((m) => (
+          <MacroCard key={m.label} {...m} />
+        ))}
+      </div>
 
-      {/* AI Suggestions */}
-      {!loading && (
-        <Card className="mb-5">
-          <CardContent className="pt-5 pb-5">
-            <div className="flex justify-between items-center mb-2.5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.04em]" style={{ color: "var(--ink-muted)" }}>
-                Sugerencias
-              </p>
-              <button
-                onClick={() => fetchSuggestions(meals, gymDay)}
-                disabled={suggestionsLoading}
-                className="bg-transparent border-0 text-[11px] cursor-pointer p-0"
-                style={{ color: "var(--ink-muted)" }}
-              >
-                {suggestionsLoading ? "..." : "Actualizar"}
-              </button>
-            </div>
-
-            {suggestionsLoading ? (
-              <p className="text-xs text-center py-2" style={{ color: "var(--ink-muted)" }}>Calculando...</p>
-            ) : suggestions.length === 0 ? (
-              <p className="text-xs text-center py-2" style={{ color: "var(--ink-muted)" }}>Sin sugerencias.</p>
-            ) : (
-              suggestions.map((s) => {
-                const food = TRACKER_FOODS.find((f) => f.id === s.foodId);
-                const macros = food ? macroScale(food, s.weight_g) : null;
-                return (
-                  <div
-                    key={s.foodId}
-                    className="flex justify-between items-center py-2"
-                    style={{ borderTop: "1px solid var(--border-color)" }}
-                  >
-                    <div className="flex-1">
-                      <p className="text-[13px] font-medium" style={{ color: "var(--ink)" }}>
-                        {s.name} <span className="font-normal" style={{ color: "var(--ink-muted)" }}>({s.weight_g}g)</span>
-                      </p>
-                      <p className="text-[11px]" style={{ color: "var(--ink-muted)" }}>{s.reason}</p>
-                    </div>
-                    {macros && (
-                      <p className="text-[11px] shrink-0 ml-2" style={{ color: "var(--ink-muted)" }}>
-                        {Math.round(macros.kcal)} kcal · {Math.round(macros.protein * 10) / 10}g P
-                      </p>
-                    )}
-                    {food && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="ml-2 shrink-0 px-2 py-1 h-auto text-xs"
-                        onClick={() => handleQuickLog(s)}
-                      >
-                        +
-                      </Button>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </CardContent>
-        </Card>
-      )}
-
+      {/* Logged meals */}
       {loading ? (
         <p className="text-xs text-center py-4" style={{ color: "var(--ink-muted)" }}>Cargando...</p>
       ) : todayMeals.length === 0 ? (
@@ -489,21 +417,84 @@ export default function TodayTab({
           <MealCard
             key={meal.id}
             meal={meal}
-            expanded={expandedId === meal.id}
-            onToggle={() => setExpandedId(expandedId === meal.id ? null : meal.id)}
-            onEdit={() => { setEditingMeal(meal); setExpandedId(null); }}
+            onEdit={() => setEditingMeal(meal)}
             onDelete={() => setConfirmDeleteId(meal.id)}
           />
         ))
       )}
 
+      {/* Log more button */}
       <Button
         variant="outline"
-        className="w-full mt-1 border-dashed"
+        className="w-full mt-1 mb-5 border-dashed"
         onClick={onLogMore}
       >
-        + Registrar comida
+        + Registrar comida →
       </Button>
+
+      {/* Suggestions */}
+      {!loading && (
+        <div
+          className="rounded-[4px] p-4 mb-5"
+          style={{ background: "var(--suggestion-bg)" }}
+        >
+          <div className="flex justify-between items-center mb-3">
+            <p className="text-[13px] font-semibold" style={{ color: "var(--ink)" }}>
+              Sugerencias para el resto del dia
+            </p>
+            <button
+              onClick={() => fetchSuggestions(meals, gymDay)}
+              disabled={suggestionsLoading}
+              className="bg-transparent border-0 text-[11px] cursor-pointer p-0"
+              style={{ color: "var(--ink-muted)" }}
+            >
+              {suggestionsLoading ? "..." : "Actualizar"}
+            </button>
+          </div>
+
+          {suggestionsLoading ? (
+            <p className="text-xs text-center py-2" style={{ color: "var(--ink-muted)" }}>Calculando...</p>
+          ) : suggestions.length === 0 ? (
+            <p className="text-xs text-center py-2" style={{ color: "var(--ink-muted)" }}>Sin sugerencias.</p>
+          ) : (
+            suggestions.map((s) => {
+              const food = TRACKER_FOODS.find((f) => f.id === s.foodId);
+              const macrosData = food ? macroScale(food, s.weight_g) : null;
+              const emoji = food ? groupEmoji(food.group) : "🍽️";
+              return (
+                <div
+                  key={s.foodId}
+                  className="flex items-start gap-3 py-2.5"
+                  style={{ borderTop: "1px solid var(--border-color)" }}
+                >
+                  <span className="text-base mt-0.5 shrink-0">{emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-medium" style={{ color: "var(--ink)" }}>
+                      {s.name}
+                      {macrosData && (
+                        <span className="font-normal ml-1" style={{ color: "var(--ink-muted)" }}>
+                          ({Math.round(macrosData.kcal)} kcal, {Math.round(macrosData.protein)}g protein)
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-muted)" }}>{s.reason}</p>
+                  </div>
+                  {food && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0 px-2 py-1 h-auto text-xs"
+                      onClick={() => handleQuickLog(s)}
+                    >
+                      +
+                    </Button>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
 
       {/* Confirm delete dialog */}
       <Dialog open={!!confirmDeleteId} onOpenChange={() => setConfirmDeleteId(null)}>

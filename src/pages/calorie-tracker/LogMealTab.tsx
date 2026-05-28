@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { Mic, Square, Send } from "lucide-react";
 
 export interface SelectorItem {
   foodId: string;
@@ -22,14 +23,23 @@ interface Props {
   onLogged: () => void;
 }
 
+const TIME_SHORTCUTS = [
+  { label: "Desayuno (8 AM)", time: "08:00" },
+  { label: "Almuerzo (12 PM)", time: "12:00" },
+  { label: "Snack (3 PM)", time: "15:00" },
+  { label: "Cena (7 PM)", time: "19:00" },
+];
+
 export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }: Props) {
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
-  const [chatMode, setChatMode] = useState(false);
+  const [chatMode, setChatMode] = useState(true);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const [showQuickMeals, setShowQuickMeals] = useState(true);
+  const [mealDate, setMealDate] = useState(getTodayCET());
+  const [mealTime, setMealTime] = useState(getCurrentTimeCET());
 
   const filtered = useMemo(() => {
     if (!query.trim()) return TRACKER_FOODS;
@@ -73,8 +83,8 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
     const totals = sumTotals(items);
     const meal: LoggedMeal = {
       id: crypto.randomUUID(),
-      date: getTodayCET(),
-      time: getCurrentTimeCET(),
+      date: mealDate,
+      time: mealTime,
       items,
       totals,
     };
@@ -116,8 +126,8 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
         const totals = sumTotals(loggedItems);
         const meal: LoggedMeal = {
           id: crypto.randomUUID(),
-          date: getTodayCET(),
-          time: getCurrentTimeCET(),
+          date: mealDate,
+          time: mealTime,
           items: loggedItems,
           totals,
         };
@@ -136,27 +146,79 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
 
   return (
     <div>
-      {/* Mode toggle */}
-      <div className="flex gap-1.5 mb-5">
-        {(["Selector", "Chat"] as const).map((mode) => {
+      {/* Segment control */}
+      <div
+        className="flex p-1 mb-5 rounded-[4px]"
+        style={{ background: "var(--beige)" }}
+      >
+        {(["Chat", "Selector"] as const).map((mode) => {
           const active = (mode === "Chat") === chatMode;
           return (
             <button
               key={mode}
               onClick={() => setChatMode(mode === "Chat")}
               className={cn(
-                "flex-1 py-2 text-xs font-[inherit] cursor-pointer transition-all",
+                "flex-1 py-2 text-xs font-[inherit] cursor-pointer transition-all border-0 rounded-[4px]",
                 active
-                  ? "bg-[var(--ink)] text-[var(--cream)] font-semibold border-0"
-                  : "border border-[var(--border-color)] bg-[var(--beige)] font-normal",
+                  ? "bg-[var(--cream)] shadow-sm font-semibold"
+                  : "bg-transparent font-normal",
               )}
-              style={{ color: active ? undefined : "var(--ink-muted)" }}
+              style={{ color: active ? "var(--ink)" : "var(--ink-muted)" }}
             >
               {mode}
             </button>
           );
         })}
       </div>
+
+      {/* Date/time picker */}
+      <Card className="mb-5">
+        <CardContent className="pt-4 pb-4">
+          <p className="text-[13px] font-semibold mb-3" style={{ color: "var(--ink)" }}>
+            Cuando comiste esto?
+          </p>
+          <div className="flex gap-2 mb-3">
+            <input
+              type="date"
+              value={mealDate}
+              onChange={(e) => setMealDate(e.target.value)}
+              className="flex-1 px-2.5 py-2 text-[13px] font-[inherit]"
+              style={{
+                border: "1px solid var(--border-color)",
+                background: "var(--cream)",
+                color: "var(--ink)",
+              }}
+            />
+            <input
+              type="time"
+              value={mealTime}
+              onChange={(e) => setMealTime(e.target.value)}
+              className="w-28 px-2.5 py-2 text-[13px] font-[inherit]"
+              style={{
+                border: "1px solid var(--border-color)",
+                background: "var(--cream)",
+                color: "var(--ink)",
+              }}
+            />
+          </div>
+          <p className="text-[11px] mb-2" style={{ color: "var(--ink-muted)" }}>
+            O elige una hora:
+          </p>
+          <div className="flex gap-1.5 flex-wrap">
+            {TIME_SHORTCUTS.map((s) => (
+              <Button
+                key={s.time}
+                variant="outline"
+                size="sm"
+                className="text-[11px]"
+                onClick={() => setMealTime(s.time)}
+              >
+                {s.label}
+              </Button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {chatMode ? (
         <ChatView
@@ -405,22 +467,27 @@ function ChatView({
 
   return (
     <div>
-      <div
-        className="min-h-[180px] max-h-[280px] overflow-y-auto mb-3 flex flex-col gap-2"
-      >
+      {/* Chat messages */}
+      <div className="min-h-[200px] max-h-[300px] overflow-y-auto mb-3 flex flex-col gap-2.5">
         {history.length === 0 ? (
-          <p className="text-xs text-center py-6" style={{ color: "var(--ink-muted)" }}>
-            Describe lo que comiste...
-          </p>
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-xs py-6" style={{ color: "var(--ink-muted)" }}>
+              Describe lo que comiste...
+            </p>
+          </div>
         ) : (
           history.map((msg, i) => (
             <div
               key={i}
-              className="px-3 py-2 text-[13px] max-w-[80%]"
+              className={cn(
+                "px-3.5 py-2.5 text-[13px] max-w-[85%] leading-relaxed",
+                msg.role === "user"
+                  ? "self-end rounded-[4px] rounded-br-none"
+                  : "self-start rounded-[4px] rounded-bl-none shadow-sm"
+              )}
               style={{
-                alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
-                background: msg.role === "user" ? "var(--ink)" : "var(--beige)",
-                color: msg.role === "user" ? "var(--cream)" : "var(--ink)",
+                background: msg.role === "user" ? "var(--blue)" : "var(--beige)",
+                color: "var(--ink)",
               }}
             >
               {msg.content}
@@ -428,14 +495,20 @@ function ChatView({
           ))
         )}
         {loading && (
-          <div className="self-start text-xs py-1" style={{ color: "var(--ink-muted)" }}>...</div>
+          <div
+            className="self-start px-3.5 py-2.5 text-xs rounded-[4px] rounded-bl-none"
+            style={{ background: "var(--beige)", color: "var(--ink-muted)" }}
+          >
+            ...
+          </div>
         )}
         <div ref={chatEndRef} />
       </div>
 
+      {/* Recording indicator */}
       {(recording || transcribing) && (
         <div
-          className="flex items-center gap-2 px-2.5 py-1.5 mb-2 text-xs"
+          className="flex items-center gap-2 px-2.5 py-1.5 mb-2 text-xs rounded-[4px]"
           style={{ background: recording ? "#fde8e8" : "var(--beige)" }}
         >
           {recording && (
@@ -451,35 +524,39 @@ function ChatView({
         </div>
       )}
 
+      {/* Input bar */}
       <div className="flex gap-2">
         <Input
           type="text"
           value={input}
-          placeholder="2 huevos y avena..."
+          placeholder="Escribe o dicta..."
           onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") onSend(); }}
           disabled={loading || transcribing}
           className="flex-1 text-[13px]"
           style={{ background: "var(--cream)" }}
         />
-        <button
+        <Button
+          variant="outline"
+          size="icon"
           onClick={toggleRecording}
           disabled={loading || transcribing}
-          title={recording ? "Detener grabacion" : "Grabar voz"}
-          className="px-3 py-2 text-base shrink-0 border cursor-pointer"
-          style={{
-            background: recording ? "#e53e3e" : "var(--beige)",
-            color: recording ? "white" : "var(--ink-muted)",
-            borderColor: "var(--border-color)",
-          }}
+          className={recording ? "bg-[#e53e3e] text-white border-[#e53e3e]" : ""}
         >
-          {transcribing ? "..." : recording ? "\u25A0" : "\uD83C\uDF99\uFE0F"}
-        </button>
+          {transcribing ? (
+            <span className="text-[10px]">...</span>
+          ) : recording ? (
+            <Square size={14} />
+          ) : (
+            <Mic size={16} />
+          )}
+        </Button>
         <Button
+          size="icon"
           onClick={onSend}
           disabled={loading || !input.trim()}
         >
-          Enviar
+          <Send size={16} />
         </Button>
       </div>
     </div>
