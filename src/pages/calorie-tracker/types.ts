@@ -1,4 +1,4 @@
-import type { FoodGroup } from "../../data/foods";
+import type { FoodGroup, FoodTag } from "../../data/foods";
 
 export interface TrackerFood {
   id: string;
@@ -11,6 +11,7 @@ export interface TrackerFood {
   fatPer100g: number;
   fiberPer100g: number;
   sugarPer100g: number;
+  tags: FoodTag[];
 }
 
 export interface LoggedFoodItem {

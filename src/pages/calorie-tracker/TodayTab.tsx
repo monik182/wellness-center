@@ -28,18 +28,32 @@ function groupEmoji(group: string): string {
   return GROUP_EMOJI[group] ?? "🍽️";
 }
 
+// ── Compute empty calories ──────────────────────────────────────
+function computeEmptyKcal(meals: LoggedMeal[]): number {
+  return meals.reduce((total, meal) => {
+    return total + meal.items.reduce((itemTotal, item) => {
+      const tracker = TRACKER_FOODS.find((f) => f.id === item.foodId);
+      if (tracker && tracker.tags.includes("Calorías vacías")) {
+        return itemTotal + item.kcal;
+      }
+      return itemTotal;
+    }, 0);
+  }, 0);
+}
+
 // ── Macro card ───────────────────────────────────────────────────
 function MacroCard({
   label, consumed, target, unit, color,
 }: {
   label: string;
   consumed: number;
-  target: number;
+  target?: number;
   unit: string;
   color: string;
 }) {
-  const pct = Math.min((consumed / target) * 100, 100);
-  const over = consumed > target;
+  const hasTarget = target !== undefined && target > 0;
+  const pct = hasTarget ? Math.min((consumed / target) * 100, 100) : 0;
+  const over = hasTarget && consumed > target;
   const barColor = over ? "#e57373" : color;
 
   return (
@@ -51,21 +65,25 @@ function MacroCard({
         >
           {label}
         </p>
-        <p className="text-xl font-bold leading-tight" style={{ color: "var(--ink)" }}>
+        <p className="text-xl font-bold leading-tight" style={{ color: hasTarget ? "var(--ink)" : color }}>
           {Math.round(consumed)}{unit === " kcal" ? "" : "g"}
         </p>
-        <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-muted)" }}>
-          {Math.round(pct)}% of {target}{unit}
-        </p>
-        <div
-          className="h-[4px] mt-2 overflow-hidden"
-          style={{ background: "var(--border-color)", borderRadius: 2 }}
-        >
+        {hasTarget && (
+          <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-muted)" }}>
+            {Math.round(pct)}% of {target}{unit}
+          </p>
+        )}
+        {hasTarget && (
           <div
-            className="h-full transition-[width] duration-300 ease-out"
-            style={{ width: `${pct}%`, backgroundColor: barColor, borderRadius: 2 }}
-          />
-        </div>
+            className="h-[4px] mt-2 overflow-hidden"
+            style={{ background: "var(--border-color)", borderRadius: 2 }}
+          >
+            <div
+              className="h-full transition-[width] duration-300 ease-out"
+              style={{ width: `${pct}%`, backgroundColor: barColor, borderRadius: 2 }}
+            />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -311,6 +329,7 @@ export default function TodayTab({
   const todayMeals = [...meals].sort((a, b) => b.time.localeCompare(a.time));
   const targets = gymDay ? TARGETS.gym : TARGETS.regular;
   const consumed: MacroTotals = sumMealTotals(todayMeals);
+  const emptyKcal = computeEmptyKcal(todayMeals);
 
   async function handleGymToggle(checked: boolean) {
     setGymDay(checked);
@@ -381,6 +400,7 @@ export default function TodayTab({
     { label: "Grasa",     consumed: consumed.fat,      target: targets.fat,      unit: "g",     color: "var(--macro-fat)" },
     { label: "Fibra",     consumed: consumed.fiber,    target: targets.fiber,    unit: "g",     color: "var(--macro-fiber)" },
     { label: "Azucar",    consumed: consumed.sugar,    target: targets.sugar,    unit: "g",     color: "var(--macro-sugar)" },
+    { label: "Vacias",    consumed: emptyKcal,         target: undefined,        unit: " kcal", color: "#ff9800" },
   ];
 
   return (

@@ -100,6 +100,7 @@ export const TRACKER_FOODS: TrackerFood[] = FOODS
       fatPer100g: r(f.fat * scale),
       fiberPer100g: r(f.fiber * scale),
       sugarPer100g: r(f.sugar * scale),
+      tags: f.tags ?? [],
     };
   });
 
