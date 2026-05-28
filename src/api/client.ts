@@ -1,5 +1,20 @@
 import type { LoggedMeal, Suggestion, TrackerFood, MacroTotals, ChatMessage } from "../pages/calorie-tracker/types";
 
+export interface DetectedItem {
+  name: string;
+  weight_g: number;
+  confidence: number;
+  reasoning: string;
+}
+
+export interface DetectImageResult {
+  success: boolean;
+  detected_items?: DetectedItem[];
+  confidence_summary?: string;
+  warnings?: string[];
+  error?: string;
+}
+
 const BASE = import.meta.env.VITE_API_URL ?? "";
 const KEY  = import.meta.env.VITE_API_KEY  ?? "";
 
@@ -60,5 +75,16 @@ export const api = {
       method: "POST",
       headers: headers(),
       body: JSON.stringify({ messages, foods }),
+    }).then((r) => r.json()),
+
+  detectImage: (
+    image: string,
+    mimeType: string,
+    foods: Array<{ id: string; name: string; group: string }>
+  ): Promise<DetectImageResult> =>
+    fetch(`${BASE}/api/detect-image`, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ image, mimeType, foods }),
     }).then((r) => r.json()),
 };

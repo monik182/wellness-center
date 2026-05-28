@@ -34,6 +34,27 @@ interface ChatRequest {
   foods: Array<{ id: string; name: string; defaultWeight_g: number }>;
 }
 
+interface DetectImageRequest {
+  image: string;
+  mimeType: string;
+  foods: Array<{ id: string; name: string; group: string }>;
+}
+
+interface DetectedItem {
+  name: string;
+  weight_g: number;
+  confidence: number;
+  reasoning: string;
+}
+
+interface DetectImageResponse {
+  success: boolean;
+  detected_items?: DetectedItem[];
+  confidence_summary?: string;
+  warnings?: string[];
+  error?: string;
+}
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -271,6 +292,113 @@ Rules:
         return json(JSON.parse(match[0]));
       } catch {
         return json({ type: "message", text: "No entendí. Intenta de nuevo." });
+      }
+    }
+
+    // /api/detect-image
+    if (path === "/api/detect-image" && method === "POST") {
+      const body = await request.json() as DetectImageRequest;
+
+      const base64Bytes = body.image.length * 0.75;
+      if (base64Bytes > 10 * 1024 * 1024) {
+        return err("Image too large (10 MB max)", 400);
+      }
+
+      const validMimes = ["image/jpeg", "image/png", "image/webp"];
+      if (!validMimes.includes(body.mimeType)) {
+        return err("Invalid image format. Use JPEG, PNG, or WebP.", 400);
+      }
+
+      const foodLines = body.foods
+        .map((f) => `${f.id}|${f.name}`)
+        .join("\n");
+
+      const prompt = `You are a food identification AI. Analyze this meal photo and identify each distinct food item visible. For each item, estimate its weight in grams.
+
+Available foods you can match to (id|name):
+${foodLines}
+
+Return ONLY valid JSON in this format (no markdown, no explanation):
+{
+  "detected_items": [
+    {
+      "name": "Food name (use Spanish names from the list if possible, or best match)",
+      "weight_g": 150,
+      "confidence": 0.95,
+      "reasoning": "Brief description of visual cues"
+    }
+  ],
+  "confidence_summary": "Overall confidence assessment",
+  "warnings": ["Any ambiguities or uncertainties"]
+}
+
+Rules:
+- Only identify items clearly visible
+- Use weights between 50-500g per item
+- confidence: 0.8-1.0 scale
+- If no food is visible, return empty detected_items array
+- Match food names to the available foods list when possible
+- Be conservative: if uncertain, lower the confidence score`;
+
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": env.ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1024,
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "image",
+                  source: {
+                    type: "base64",
+                    media_type: body.mimeType,
+                    data: body.image,
+                  },
+                },
+                {
+                  type: "text",
+                  text: prompt,
+                },
+              ],
+            },
+          ],
+        }),
+      });
+
+      if (!resp.ok) return err("Claude API error", 502);
+
+      const aiResp = await resp.json() as { content: Array<{ text: string }> };
+      const text = aiResp.content[0]?.text ?? "{}";
+
+      const match = text.match(/\{[\s\S]*\}/);
+      if (!match) return json({ success: false, error: "Unable to parse response" }, 502);
+
+      try {
+        const parsed = JSON.parse(match[0]) as {
+          detected_items: DetectedItem[];
+          confidence_summary: string;
+          warnings: string[];
+        };
+
+        if (!Array.isArray(parsed.detected_items)) {
+          return json({ success: false, error: "Invalid response format" }, 502);
+        }
+
+        return json({
+          success: true,
+          detected_items: parsed.detected_items,
+          confidence_summary: parsed.confidence_summary,
+          warnings: parsed.warnings || [],
+        });
+      } catch {
+        return json({ success: false, error: "Unable to parse response" }, 502);
       }
     }
 

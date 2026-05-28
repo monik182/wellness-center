@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Mic, Square, Send } from "lucide-react";
+import PictureLogView from "./PictureLogView";
 
 export interface SelectorItem {
   foodId: string;
@@ -33,7 +34,7 @@ const TIME_SHORTCUTS = [
 export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }: Props) {
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
-  const [chatMode, setChatMode] = useState(true);
+  const [logView, setLogView] = useState<"chat" | "selector" | "picture">("chat");
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -151,12 +152,13 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
         className="flex p-1 mb-5 rounded-[4px]"
         style={{ background: "var(--beige)" }}
       >
-        {(["Chat", "Selector"] as const).map((mode) => {
-          const active = (mode === "Chat") === chatMode;
+        {(["Chat", "Selector", "Foto"] as const).map((label) => {
+          const modeValue = label === "Chat" ? "chat" : label === "Selector" ? "selector" : "picture";
+          const active = logView === modeValue;
           return (
             <button
-              key={mode}
-              onClick={() => setChatMode(mode === "Chat")}
+              key={modeValue}
+              onClick={() => setLogView(modeValue)}
               className={cn(
                 "flex-1 py-2 text-xs font-[inherit] cursor-pointer transition-all border-0 rounded-[4px]",
                 active
@@ -165,7 +167,7 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
               )}
               style={{ color: active ? "var(--ink)" : "var(--ink-muted)" }}
             >
-              {mode}
+              {label}
             </button>
           );
         })}
@@ -220,13 +222,19 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
         </CardContent>
       </Card>
 
-      {chatMode ? (
+      {logView === "chat" ? (
         <ChatView
           history={chatHistory}
           input={chatInput}
           loading={chatLoading}
           onSend={handleChatSend}
           onInputChange={setChatInput}
+        />
+      ) : logView === "picture" ? (
+        <PictureLogView
+          onLogged={onLogged}
+          mealDate={mealDate}
+          mealTime={mealTime}
         />
       ) : (
         <>
