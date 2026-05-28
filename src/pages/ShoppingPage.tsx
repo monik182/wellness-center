@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { GROCERY_LIST } from "../data/meals";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 export default function ShoppingPage() {
   const [checked, setChecked] = useState<Record<string, boolean>>({});
@@ -11,61 +13,54 @@ export default function ShoppingPage() {
   const checkedCount = allKeys.filter((k) => checked[k]).length;
 
   return (
-    <div>
-      <div style={{
-        background: "var(--cream)", borderRadius: 16,
-        padding: "10px 16px", marginBottom: 12,
-        border: "1px solid var(--border)",
-        display: "flex", justifyContent: "space-between", alignItems: "center",
-      }}>
-        <span style={{ fontSize: 13, color: "var(--muted)" }}>Progreso</span>
-        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--green)" }}>
-          {checkedCount}/{allKeys.length}
-        </span>
-      </div>
+    <div className="flex flex-col gap-2">
+      <Card>
+        <CardContent className="py-2.5 px-4 flex justify-between items-center">
+          <span className="text-[13px]" style={{ color: "var(--ink-muted)" }}>Progreso</span>
+          <span className="text-[13px] font-semibold" style={{ color: "var(--green)" }}>
+            {checkedCount}/{allKeys.length}
+          </span>
+        </CardContent>
+      </Card>
 
       {Object.entries(GROCERY_LIST).map(([cat, items]) => (
-        <div key={cat} style={{
-          background: "var(--cream)", borderRadius: 16,
-          padding: 14, marginBottom: 8,
-          border: "1px solid var(--border)",
-        }}>
-          <p style={{ fontWeight: 600, fontSize: 13, margin: "0 0 8px", color: "var(--ink)" }}>
-            {cat}
-          </p>
-          {items.map((item, i) => (
-            <label key={i} style={{
-              display: "flex", alignItems: "center", gap: 10,
-              padding: "5px 0", fontSize: 12.5, color: "var(--muted)",
-              cursor: "pointer",
-              textDecoration: checked[item] ? "line-through" : "none",
-              opacity: checked[item] ? 0.5 : 1,
-              transition: "all 0.15s",
-            }}>
-              <input
-                type="checkbox"
-                checked={!!checked[item]}
-                onChange={() => toggle(item)}
-                style={{ accentColor: "var(--green)", width: 15, height: 15, flexShrink: 0 }}
-              />
-              {item}
-            </label>
-          ))}
-        </div>
+        <Card key={cat}>
+          <CardContent className="pt-3.5 pb-3.5">
+            <p className="font-semibold text-[13px] mb-2" style={{ color: "var(--ink)" }}>
+              {cat}
+            </p>
+            {items.map((item, i) => (
+              <label
+                key={i}
+                className="flex items-center gap-2.5 py-1 text-[12.5px] cursor-pointer transition-all duration-150"
+                style={{
+                  color: "var(--ink-muted)",
+                  textDecoration: checked[item] ? "line-through" : "none",
+                  opacity: checked[item] ? 0.5 : 1,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={!!checked[item]}
+                  onChange={() => toggle(item)}
+                  className="shrink-0 w-[15px] h-[15px]"
+                  style={{ accentColor: "var(--green)" }}
+                />
+                {item}
+              </label>
+            ))}
+          </CardContent>
+        </Card>
       ))}
 
       {checkedCount > 0 && (
-        <button
+        <Button
+          variant="outline"
+          className="w-full mt-1"
           onClick={() => setChecked({})}
-          style={{
-            width: "100%", padding: "10px", borderRadius: 24,
-            border: "1px dashed var(--border)", background: "transparent",
-            fontFamily: "'Poppins', sans-serif", fontSize: 12,
-            color: "var(--muted)", marginTop: 4, cursor: "pointer",
-          }}
         >
           Limpiar selección
-        </button>
+        </Button>
       )}
     </div>
   );

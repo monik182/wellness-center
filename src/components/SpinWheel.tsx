@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import type { WheelItem } from "../data/foods";
 import { WHEEL_CATEGORY_META, type WheelCategory } from "../data/foods";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface SpinWheelProps {
   category: WheelCategory;
@@ -46,7 +47,6 @@ export default function SpinWheel({ category, items, selected, onResult }: SpinW
   const radius = 130, cx = 150, cy = 150;
   const maxChars = count > 6 ? 12 : 14;
 
-  // Parse hex color to rgb components for darkening
   const parseHex = (hex: string) => ({
     r: parseInt(hex.slice(1, 3), 16),
     g: parseInt(hex.slice(3, 5), 16),
@@ -55,33 +55,35 @@ export default function SpinWheel({ category, items, selected, onResult }: SpinW
   const base = parseHex(meta.color);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-      <p style={{ fontFamily: "'La Belle Aurore', cursive", fontSize: 22, color: "var(--ink)", margin: 0, textAlign: "center" }}>
+    <div className="flex flex-col items-center gap-3">
+      <p className="text-center m-0" style={{ fontFamily: "'La Belle Aurore', cursive", fontSize: 22, color: "var(--ink)" }}>
         {meta.label}
       </p>
 
-      <div style={{ position: "relative", width: 300, height: 300 }}>
+      <div className="relative w-[300px] h-[300px]">
         {/* Pointer */}
-        <div style={{
-          position: "absolute", top: -8, left: "50%",
-          transform: "translateX(-50%)",
-          width: 0, height: 0,
-          borderLeft: "12px solid transparent",
-          borderRight: "12px solid transparent",
-          borderTop: "20px solid var(--ink)",
-          zIndex: 2, filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.15))",
-        }} />
+        <div
+          className="absolute top-[-8px] left-1/2 z-[2]"
+          style={{
+            transform: "translateX(-50%)",
+            width: 0, height: 0,
+            borderLeft: "12px solid transparent",
+            borderRight: "12px solid transparent",
+            borderTop: "20px solid var(--ink)",
+            filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.15))",
+          }}
+        />
 
         {/* Hover tooltip */}
         {hoveredIndex !== null && !spinning && (
-          <div style={{
-            position: "absolute", top: -40, left: "50%",
-            transform: "translateX(-50%)",
-            background: "var(--ink)", color: "var(--cream)",
-            padding: "5px 12px", borderRadius: 8,
-            fontSize: 12, fontWeight: 500,
-            whiteSpace: "nowrap", zIndex: 3, pointerEvents: "none",
-          }}>
+          <div
+            className="absolute top-[-40px] left-1/2 z-[3] text-xs font-medium whitespace-nowrap pointer-events-none px-3 py-1.5"
+            style={{
+              transform: "translateX(-50%)",
+              background: "var(--ink)",
+              color: "var(--cream)",
+            }}
+          >
             {items[hoveredIndex].name}
           </div>
         )}
@@ -134,7 +136,7 @@ export default function SpinWheel({ category, items, selected, onResult }: SpinW
               </g>
             );
           })}
-          <circle cx={cx} cy={cy} r="28" fill="var(--cream)" stroke="var(--border)" strokeWidth="2" />
+          <circle cx={cx} cy={cy} r="28" fill="var(--cream)" stroke="var(--border-color)" strokeWidth="2" />
           <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle"
             style={{ fontSize: 11, fontFamily: "'Poppins', sans-serif", fontWeight: 600, fill: "var(--ink)", pointerEvents: "none" }}>
             {spinning ? "..." : "GIRAR"}
@@ -143,23 +145,20 @@ export default function SpinWheel({ category, items, selected, onResult }: SpinW
       </div>
 
       {result && !spinning && (
-        <div style={{
-          background: "var(--cream)", borderRadius: 14,
-          padding: "12px 20px", border: `2px solid ${meta.color}`,
-          textAlign: "center", minWidth: 220,
-          animation: "fadeUp 0.3s ease",
-        }}>
-          <p style={{ fontWeight: 600, fontSize: 15, color: "var(--ink)", margin: "0 0 2px" }}>{result.name}</p>
-          <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 4px" }}>{result.portion}</p>
-          <div style={{ display: "flex", gap: 12, justifyContent: "center", fontSize: 12 }}>
-            <span style={{ color: "var(--muted)" }}>{result.kcal} kcal</span>
-            <span style={{ color: "var(--green)", fontWeight: 600 }}>{result.protein}g prot</span>
-          </div>
-        </div>
+        <Card className="text-center min-w-[220px] fade-up" style={{ borderWidth: 2, borderColor: meta.color }}>
+          <CardContent className="pt-3 pb-3">
+            <p className="font-semibold text-[15px] mb-0.5" style={{ color: "var(--ink)" }}>{result.name}</p>
+            <p className="text-xs mb-1" style={{ color: "var(--ink-muted)" }}>{result.portion}</p>
+            <div className="flex gap-3 justify-center text-xs">
+              <span style={{ color: "var(--ink-muted)" }}>{result.kcal} kcal</span>
+              <span className="font-semibold" style={{ color: "var(--green)" }}>{result.protein}g prot</span>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {!result && !spinning && (
-        <p style={{ fontSize: 12, color: "var(--muted)", margin: 0, fontStyle: "italic" }}>
+        <p className="text-xs italic m-0" style={{ color: "var(--ink-muted)" }}>
           Toca la rueda para girar
         </p>
       )}

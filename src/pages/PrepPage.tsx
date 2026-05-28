@@ -1,47 +1,42 @@
 import { PREP_GUIDE } from "../data/meals";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function PrepPage() {
   return (
-    <div>
-      <div style={{
-        background: "var(--cream)", borderRadius: 16,
-        padding: 14, marginBottom: 14, border: "1px solid var(--border)",
-      }}>
-        <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", margin: "0 0 4px" }}>
-          🕐 Tiempo total: ~1.5 horas
-        </p>
-        <p style={{ fontSize: 12, color: "var(--muted)", margin: 0 }}>
-          Domingo (o cuando puedas). Te dura 4-5 días.
-        </p>
-      </div>
+    <div className="flex flex-col gap-2">
+      <Card>
+        <CardContent className="pt-3.5 pb-3.5">
+          <p className="text-sm font-semibold mb-1" style={{ color: "var(--ink)" }}>
+            🕐 Tiempo total: ~1.5 horas
+          </p>
+          <p className="text-xs" style={{ color: "var(--ink-muted)" }}>
+            Domingo (o cuando puedas). Te dura 4-5 días.
+          </p>
+        </CardContent>
+      </Card>
 
       {PREP_GUIDE.map((step, i) => (
-        <div key={i} style={{
-          background: "var(--cream)", borderRadius: 16,
-          padding: 14, marginBottom: 8,
-          border: "1px solid var(--border)",
-          display: "flex", gap: 12,
-        }}>
-          <div style={{
-            width: 34, height: 34, borderRadius: "50%",
-            background: "var(--blue)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontWeight: 700, fontSize: 14, color: "var(--ink)", flexShrink: 0,
-          }}>
-            {step.step}
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <p style={{ fontWeight: 600, fontSize: 13, margin: "0 0 3px", color: "var(--ink)" }}>
-                {step.title}
-              </p>
-              <span style={{ fontSize: 11, color: "var(--muted)", fontWeight: 500 }}>{step.time}</span>
+        <Card key={i}>
+          <CardContent className="pt-3.5 pb-3.5 flex gap-3">
+            <div
+              className="w-[34px] h-[34px] flex items-center justify-center font-bold text-sm shrink-0"
+              style={{ background: "var(--blue)", borderRadius: "50%", color: "var(--ink)" }}
+            >
+              {step.step}
             </div>
-            <p style={{ fontSize: 12, color: "var(--muted)", margin: 0, lineHeight: 1.5 }}>
-              {step.detail}
-            </p>
-          </div>
-        </div>
+            <div className="flex-1">
+              <div className="flex justify-between items-baseline">
+                <p className="font-semibold text-[13px] mb-0.5" style={{ color: "var(--ink)" }}>
+                  {step.title}
+                </p>
+                <span className="text-[11px] font-medium" style={{ color: "var(--ink-muted)" }}>{step.time}</span>
+              </div>
+              <p className="text-xs leading-relaxed" style={{ color: "var(--ink-muted)" }}>
+                {step.detail}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       ))}
     </div>
   );

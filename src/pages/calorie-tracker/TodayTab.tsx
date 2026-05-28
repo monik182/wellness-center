@@ -5,6 +5,12 @@ import {
   type LoggedMeal, type MacroTotals, type LoggedFoodItem, type Suggestion,
 } from "./types";
 import { api } from "../../api/client";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+  DialogFooter, DialogDescription,
+} from "@/components/ui/dialog";
 
 // ─── Macro progress bar ───────────────────────────────────────────
 function MacroBar({
@@ -23,27 +29,20 @@ function MacroBar({
     ? "#e57373"
     : danger && near
     ? "#ffb74d"
-    : over
-    ? "#e57373"
     : "var(--green)";
 
   return (
-    <div style={{ marginBottom: 10 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
-        <span style={{ fontWeight: 600, color: "var(--ink)" }}>{label}</span>
-        <span style={{ color: "var(--muted)" }}>
+    <div className="mb-2.5">
+      <div className="flex justify-between text-[11px] mb-0.5">
+        <span className="font-semibold" style={{ color: "var(--ink)" }}>{label}</span>
+        <span style={{ color: "var(--ink-muted)" }}>
           {Math.round(consumed * 10) / 10}{unit} / {target}{unit} ({Math.round(pct)}%)
         </span>
       </div>
-      <div style={{ height: 5, borderRadius: 3, background: "var(--border)", overflow: "hidden" }}>
+      <div className="h-[5px] overflow-hidden" style={{ background: "var(--border-color)", borderRadius: 3 }}>
         <div
-          style={{
-            width: `${pct}%`,
-            height: "100%",
-            background: color,
-            borderRadius: 3,
-            transition: "width 0.3s ease",
-          }}
+          className="h-full transition-[width] duration-300 ease-out"
+          style={{ width: `${pct}%`, backgroundColor: color, borderRadius: 3 }}
         />
       </div>
     </div>
@@ -62,87 +61,65 @@ function MealCard({
 }) {
   const t = meal.totals;
   return (
-    <div style={{
-      background: "var(--cream)",
-      borderRadius: 10,
-      border: "1px solid var(--border)",
-      marginBottom: 8,
-      overflow: "hidden",
-    }}>
+    <Card className="mb-2 overflow-hidden">
       <button
         onClick={onToggle}
-        style={{
-          width: "100%", textAlign: "left", padding: "10px 12px",
-          background: "none", border: "none", cursor: "pointer",
-          display: "flex", justifyContent: "space-between", alignItems: "flex-start",
-        }}
+        className="w-full text-left px-3 py-2.5 bg-transparent border-0 cursor-pointer flex justify-between items-start"
       >
         <div>
-          <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 2 }}>{meal.time}</p>
-          <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+          <p className="text-xs mb-0.5" style={{ color: "var(--ink-muted)" }}>{meal.time}</p>
+          <p className="text-[13px] font-semibold" style={{ color: "var(--ink)" }}>
             {meal.items.map((i) => i.name).join(", ")}
           </p>
         </div>
-        <p style={{ fontSize: 12, color: "var(--muted)", flexShrink: 0, marginLeft: 8 }}>
+        <p className="text-xs shrink-0 ml-2" style={{ color: "var(--ink-muted)" }}>
           {Math.round(t.kcal)} kcal · {Math.round(t.protein)}g P
         </p>
       </button>
 
       {expanded && (
-        <div style={{ padding: "0 12px 12px" }}>
+        <CardContent className="pt-0 pb-3 px-3">
           {meal.items.map((item, i) => (
-            <div key={i} style={{
-              display: "flex", justifyContent: "space-between",
-              fontSize: 11, color: "var(--muted)", padding: "4px 0",
-              borderTop: "1px solid var(--border)",
-            }}>
+            <div
+              key={i}
+              className="flex justify-between text-[11px] py-1"
+              style={{ borderTop: "1px solid var(--border-color)", color: "var(--ink-muted)" }}
+            >
               <span>{item.name} ({item.weight_g}g)</span>
               <span>{Math.round(item.kcal)} kcal · {Math.round(item.protein * 10) / 10}g P · {Math.round(item.carbs * 10) / 10}g C</span>
             </div>
           ))}
-          <div style={{
-            display: "grid", gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 6, marginTop: 10, fontSize: 11,
-          }}>
+          <div className="grid grid-cols-3 gap-1.5 mt-2.5 text-[11px]">
             {[
-              { label: "Kcal", val: Math.round(t.kcal) },
+              { label: "Kcal",     val: Math.round(t.kcal) },
               { label: "Proteina", val: `${Math.round(t.protein * 10) / 10}g` },
-              { label: "Carbos", val: `${Math.round(t.carbs * 10) / 10}g` },
-              { label: "Grasa", val: `${Math.round(t.fat * 10) / 10}g` },
-              { label: "Fibra", val: `${Math.round(t.fiber * 10) / 10}g` },
-              { label: "Azucar", val: `${Math.round(t.sugar * 10) / 10}g` },
+              { label: "Carbos",   val: `${Math.round(t.carbs * 10) / 10}g` },
+              { label: "Grasa",    val: `${Math.round(t.fat * 10) / 10}g` },
+              { label: "Fibra",    val: `${Math.round(t.fiber * 10) / 10}g` },
+              { label: "Azucar",   val: `${Math.round(t.sugar * 10) / 10}g` },
             ].map(({ label, val }) => (
-              <div key={label} style={{ background: "var(--beige)", borderRadius: 6, padding: "6px 8px", textAlign: "center" }}>
-                <p style={{ color: "var(--muted)", marginBottom: 2 }}>{label}</p>
-                <p style={{ fontWeight: 600, color: "var(--ink)" }}>{val}</p>
+              <div key={label} className="px-2 py-1.5 text-center" style={{ background: "var(--beige)" }}>
+                <p className="mb-0.5" style={{ color: "var(--ink-muted)" }}>{label}</p>
+                <p className="font-semibold" style={{ color: "var(--ink)" }}>{val}</p>
               </div>
             ))}
           </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            <button
-              onClick={onEdit}
-              style={{
-                flex: 1, padding: "7px 0", borderRadius: 8,
-                border: "1px solid var(--border)", background: "var(--beige)",
-                fontSize: 12, cursor: "pointer", color: "var(--ink)",
-              }}
-            >
+          <div className="flex gap-2 mt-2.5">
+            <Button variant="outline" size="sm" className="flex-1" onClick={onEdit}>
               Editar
-            </button>
-            <button
+            </Button>
+            <Button
+              size="sm"
+              className="flex-1 font-semibold"
+              style={{ background: "#fde8e8", color: "#c62828", border: "none" }}
               onClick={onDelete}
-              style={{
-                flex: 1, padding: "7px 0", borderRadius: 8,
-                border: "none", background: "#fde8e8",
-                fontSize: 12, cursor: "pointer", color: "#c62828", fontWeight: 600,
-              }}
             >
               Eliminar
-            </button>
+            </Button>
           </div>
-        </div>
+        </CardContent>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -202,61 +179,56 @@ function EditMealModal({
   }
 
   return (
-    <div style={{
-      position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)",
-      display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100,
-    }}>
-      <div style={{
-        background: "var(--cream)", borderRadius: "14px 14px 0 0",
-        padding: 20, width: "100%", maxWidth: 600, maxHeight: "80vh", overflowY: "auto",
-      }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <p style={{ fontSize: 14, fontWeight: 600 }}>Editar registro</p>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--muted)" }}>x</button>
-        </div>
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent
+        className="fixed bottom-0 left-1/2 -translate-x-1/2 top-auto rounded-t-[4px] rounded-b-none w-full max-w-[600px] max-h-[80vh] overflow-y-auto"
+        style={{ transform: "translateX(-50%)" }}
+      >
+        <DialogHeader>
+          <DialogTitle className="text-sm font-semibold">Editar registro</DialogTitle>
+        </DialogHeader>
 
-        <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>Hora</label>
+        <label className="block text-[11px] mb-1" style={{ color: "var(--ink-muted)" }}>Hora</label>
         <input
           type="time"
           value={time}
           onChange={(e) => setTime(e.target.value)}
+          className="w-full px-2.5 py-2 text-[13px] mb-3.5 font-[inherit]"
           style={{
-            width: "100%", padding: "8px 10px", borderRadius: 8,
-            border: "1px solid var(--border)", background: "var(--beige)",
-            fontSize: 13, marginBottom: 14, fontFamily: "inherit",
+            border: "1px solid var(--border-color)",
+            background: "var(--beige)",
           }}
         />
 
         {items.map((item, idx) => (
-          <div key={idx} style={{
-            background: "var(--beige)", borderRadius: 8, padding: 10, marginBottom: 8,
-          }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-              <span style={{ fontSize: 12, fontWeight: 600 }}>{item.name}</span>
+          <div key={idx} className="px-2.5 py-2.5 mb-2" style={{ background: "var(--beige)" }}>
+            <div className="flex justify-between items-center mb-1.5">
+              <span className="text-xs font-semibold">{item.name}</span>
               {items.length > 1 && (
                 <button
                   onClick={() => handleRemoveItem(idx)}
-                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "#c62828" }}
+                  className="bg-transparent border-0 cursor-pointer text-sm"
+                  style={{ color: "#c62828" }}
                 >
                   x
                 </button>
               )}
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div className="flex items-center gap-2">
               <input
                 type="number"
                 min={1}
                 max={2000}
                 defaultValue={item.weight_g}
                 onBlur={(e) => handleWeightChange(idx, e.target.value)}
+                className="w-20 px-2 py-1.5 text-[13px] font-[inherit]"
                 style={{
-                  width: 80, padding: "6px 8px", borderRadius: 6,
-                  border: "1px solid var(--border)", background: "var(--cream)",
-                  fontSize: 13, fontFamily: "inherit",
+                  border: "1px solid var(--border-color)",
+                  background: "var(--cream)",
                 }}
               />
-              <span style={{ fontSize: 11, color: "var(--muted)" }}>g</span>
-              <span style={{ fontSize: 11, color: "var(--muted)", marginLeft: "auto" }}>
+              <span className="text-[11px]" style={{ color: "var(--ink-muted)" }}>g</span>
+              <span className="text-[11px] ml-auto" style={{ color: "var(--ink-muted)" }}>
                 {Math.round(item.kcal)} kcal · {Math.round(item.protein * 10) / 10}g P
               </span>
             </div>
@@ -264,35 +236,21 @@ function EditMealModal({
         ))}
 
         {items.length === 0 && (
-          <p style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", padding: "12px 0" }}>
+          <p className="text-xs text-center py-3" style={{ color: "var(--ink-muted)" }}>
             Sin alimentos. Guarda para eliminar el registro.
           </p>
         )}
 
-        <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-          <button
-            onClick={onClose}
-            style={{
-              flex: 1, padding: "10px 0", borderRadius: 10,
-              border: "1px solid var(--border)", background: "var(--beige)",
-              fontSize: 13, cursor: "pointer",
-            }}
-          >
+        <DialogFooter className="flex gap-2 mt-3.5">
+          <Button variant="outline" className="flex-1" onClick={onClose}>
             Cancelar
-          </button>
-          <button
-            onClick={handleSave}
-            style={{
-              flex: 2, padding: "10px 0", borderRadius: 10,
-              border: "none", background: "var(--ink)", color: "var(--cream)",
-              fontSize: 13, fontWeight: 600, cursor: "pointer",
-            }}
-          >
+          </Button>
+          <Button className="flex-[2]" onClick={handleSave}>
             Guardar
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -351,13 +309,11 @@ export default function TodayTab({
     Promise.all([api.getMeals(today), api.getGymDay()])
       .then(([m, g]) => {
         setMeals(m);
-        // Auto-reset gym day if stored date differs from today (midnight reset)
         const isGym = g.active && g.date === today;
         setGymDay(isGym);
         if (g.active && g.date !== today) {
           api.setGymDay(false, today);
         }
-        // Only fetch suggestions if cache is empty (invalidated or first load)
         if (!hasCachedSuggestions) {
           fetchSuggestions(m, isGym);
         }
@@ -435,14 +391,11 @@ export default function TodayTab({
 
   return (
     <div>
-      <div style={{
-        display: "flex", justifyContent: "space-between", alignItems: "center",
-        marginBottom: 14,
-      }}>
-        <p style={{ fontSize: 13, color: "var(--muted)", textTransform: "capitalize" }}>
+      <div className="flex justify-between items-center mb-3.5">
+        <p className="text-[13px] capitalize" style={{ color: "var(--ink-muted)" }}>
           {dateDisplay}
         </p>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer", color: "var(--ink)" }}>
+        <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: "var(--ink)" }}>
           <input
             type="checkbox"
             checked={gymDay}
@@ -452,95 +405,85 @@ export default function TodayTab({
         </label>
       </div>
 
-      <div style={{
-        background: "var(--cream)", borderRadius: 12, padding: 14,
-        border: "1px solid var(--border)", marginBottom: 16,
-      }}>
-        <p style={{ fontSize: 11, color: "var(--muted)", marginBottom: 12 }}>
-          {gymDay ? "Gym" : "Normal"} · objetivo {targets.kcal} kcal
-        </p>
-        <MacroBar label="Kcal"     consumed={consumed.kcal}    target={targets.kcal}    unit=" kcal" />
-        <MacroBar label="Proteina" consumed={consumed.protein} target={targets.protein} unit="g" />
-        <MacroBar label="Carbos"   consumed={consumed.carbs}   target={targets.carbs}   unit="g" />
-        <MacroBar label="Grasa"    consumed={consumed.fat}     target={targets.fat}     unit="g" />
-        <MacroBar label="Fibra"    consumed={consumed.fiber}   target={targets.fiber}   unit="g" />
-        <MacroBar label="Azucar"   consumed={consumed.sugar}   target={targets.sugar}   unit="g" danger />
-      </div>
+      <Card className="mb-4">
+        <CardContent className="pt-3.5 pb-3.5">
+          <p className="text-[11px] mb-3" style={{ color: "var(--ink-muted)" }}>
+            {gymDay ? "Gym" : "Normal"} · objetivo {targets.kcal} kcal
+          </p>
+          <MacroBar label="Kcal"     consumed={consumed.kcal}    target={targets.kcal}    unit=" kcal" />
+          <MacroBar label="Proteina" consumed={consumed.protein} target={targets.protein} unit="g" />
+          <MacroBar label="Carbos"   consumed={consumed.carbs}   target={targets.carbs}   unit="g" />
+          <MacroBar label="Grasa"    consumed={consumed.fat}     target={targets.fat}     unit="g" />
+          <MacroBar label="Fibra"    consumed={consumed.fiber}   target={targets.fiber}   unit="g" />
+          <MacroBar label="Azucar"   consumed={consumed.sugar}   target={targets.sugar}   unit="g" danger />
+        </CardContent>
+      </Card>
 
       {/* AI Suggestions */}
       {!loading && (
-        <div style={{
-          background: "var(--cream)", borderRadius: 12, padding: 14,
-          border: "1px solid var(--border)", marginBottom: 16,
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-            <p style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-              Sugerencias
-            </p>
-            <button
-              onClick={() => fetchSuggestions(meals, gymDay)}
-              disabled={suggestionsLoading}
-              style={{ background: "none", border: "none", fontSize: 11, color: "var(--muted)", cursor: "pointer", padding: 0 }}
-            >
-              {suggestionsLoading ? "..." : "Actualizar"}
-            </button>
-          </div>
+        <Card className="mb-4">
+          <CardContent className="pt-3.5 pb-3.5">
+            <div className="flex justify-between items-center mb-2.5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.04em]" style={{ color: "var(--ink-muted)" }}>
+                Sugerencias
+              </p>
+              <button
+                onClick={() => fetchSuggestions(meals, gymDay)}
+                disabled={suggestionsLoading}
+                className="bg-transparent border-0 text-[11px] cursor-pointer p-0"
+                style={{ color: "var(--ink-muted)" }}
+              >
+                {suggestionsLoading ? "..." : "Actualizar"}
+              </button>
+            </div>
 
-          {suggestionsLoading ? (
-            <p style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", padding: "8px 0" }}>
-              Calculando...
-            </p>
-          ) : suggestions.length === 0 ? (
-            <p style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", padding: "8px 0" }}>
-              Sin sugerencias.
-            </p>
-          ) : (
-            suggestions.map((s) => {
-              const food = TRACKER_FOODS.find((f) => f.id === s.foodId);
-              const macros = food ? macroScale(food, s.weight_g) : null;
-              return (
-                <div key={s.foodId} style={{
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  padding: "8px 0", borderTop: "1px solid var(--border)",
-                }}>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>
-                      {s.name} <span style={{ fontWeight: 400, color: "var(--muted)" }}>({s.weight_g}g)</span>
-                    </p>
-                    <p style={{ fontSize: 11, color: "var(--muted)" }}>{s.reason}</p>
+            {suggestionsLoading ? (
+              <p className="text-xs text-center py-2" style={{ color: "var(--ink-muted)" }}>Calculando...</p>
+            ) : suggestions.length === 0 ? (
+              <p className="text-xs text-center py-2" style={{ color: "var(--ink-muted)" }}>Sin sugerencias.</p>
+            ) : (
+              suggestions.map((s) => {
+                const food = TRACKER_FOODS.find((f) => f.id === s.foodId);
+                const macros = food ? macroScale(food, s.weight_g) : null;
+                return (
+                  <div
+                    key={s.foodId}
+                    className="flex justify-between items-center py-2"
+                    style={{ borderTop: "1px solid var(--border-color)" }}
+                  >
+                    <div className="flex-1">
+                      <p className="text-[13px] font-medium" style={{ color: "var(--ink)" }}>
+                        {s.name} <span className="font-normal" style={{ color: "var(--ink-muted)" }}>({s.weight_g}g)</span>
+                      </p>
+                      <p className="text-[11px]" style={{ color: "var(--ink-muted)" }}>{s.reason}</p>
+                    </div>
+                    {macros && (
+                      <p className="text-[11px] shrink-0 ml-2" style={{ color: "var(--ink-muted)" }}>
+                        {Math.round(macros.kcal)} kcal · {Math.round(macros.protein * 10) / 10}g P
+                      </p>
+                    )}
+                    {food && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="ml-2 shrink-0 px-2 py-1 h-auto text-xs"
+                        onClick={() => handleQuickLog(s)}
+                      >
+                        +
+                      </Button>
+                    )}
                   </div>
-                  {macros && (
-                    <p style={{ fontSize: 11, color: "var(--muted)", flexShrink: 0, marginLeft: 8 }}>
-                      {Math.round(macros.kcal)} kcal · {Math.round(macros.protein * 10) / 10}g P
-                    </p>
-                  )}
-                  {food && (
-                    <button
-                      onClick={() => handleQuickLog(s)}
-                      style={{
-                        background: "var(--beige)", border: "1px solid var(--border)",
-                        borderRadius: 6, padding: "4px 8px", marginLeft: 8,
-                        fontSize: 12, cursor: "pointer", color: "var(--ink)", flexShrink: 0,
-                      }}
-                    >
-                      +
-                    </button>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
+                );
+              })
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {loading ? (
-        <p style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", padding: "16px 0" }}>
-          Cargando...
-        </p>
+        <p className="text-xs text-center py-4" style={{ color: "var(--ink-muted)" }}>Cargando...</p>
       ) : todayMeals.length === 0 ? (
-        <p style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", padding: "16px 0 10px" }}>
-          Sin registros hoy.
-        </p>
+        <p className="text-xs text-center py-4 pb-2.5" style={{ color: "var(--ink-muted)" }}>Sin registros hoy.</p>
       ) : (
         todayMeals.map((meal) => (
           <MealCard
@@ -554,56 +497,37 @@ export default function TodayTab({
         ))
       )}
 
-      <button
+      <Button
+        variant="outline"
+        className="w-full mt-1 border-dashed"
         onClick={onLogMore}
-        style={{
-          width: "100%", padding: "11px 0", marginTop: 4,
-          borderRadius: 10, border: "1.5px dashed var(--border)",
-          background: "transparent", color: "var(--muted)",
-          fontSize: 13, cursor: "pointer",
-        }}
       >
         + Registrar comida
-      </button>
+      </Button>
 
-      {confirmDeleteId && (
-        <div style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)",
-          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100,
-        }}>
-          <div style={{
-            background: "var(--cream)", borderRadius: 14, padding: 20,
-            margin: 16, maxWidth: 320, width: "100%",
-          }}>
-            <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Eliminar registro</p>
-            <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>
+      {/* Confirm delete dialog */}
+      <Dialog open={!!confirmDeleteId} onOpenChange={() => setConfirmDeleteId(null)}>
+        <DialogContent className="mx-4 max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold">Eliminar registro</DialogTitle>
+            <DialogDescription className="text-xs" style={{ color: "var(--ink-muted)" }}>
               Esta accion no se puede deshacer.
-            </p>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={() => setConfirmDeleteId(null)}
-                style={{
-                  flex: 1, padding: "9px 0", borderRadius: 8,
-                  border: "1px solid var(--border)", background: "var(--beige)",
-                  fontSize: 12, cursor: "pointer",
-                }}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => handleDelete(confirmDeleteId)}
-                style={{
-                  flex: 1, padding: "9px 0", borderRadius: 8,
-                  border: "none", background: "#e57373", color: "#fff",
-                  fontSize: 12, cursor: "pointer", fontWeight: 600,
-                }}
-              >
-                Eliminar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => setConfirmDeleteId(null)}>
+              Cancelar
+            </Button>
+            <Button
+              className="flex-1 font-semibold"
+              style={{ background: "#e57373", color: "#fff", border: "none" }}
+              onClick={() => confirmDeleteId && handleDelete(confirmDeleteId)}
+            >
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {editingMeal && (
         <EditMealModal

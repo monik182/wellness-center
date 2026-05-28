@@ -6,6 +6,10 @@ import {
   type TrackerFood, type LoggedFoodItem, type LoggedMeal, type ChatMessage,
 } from "./types";
 import { api } from "../../api/client";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 export interface SelectorItem {
   foodId: string;
@@ -25,7 +29,6 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
-
   const [showQuickMeals, setShowQuickMeals] = useState(true);
 
   const filtered = useMemo(() => {
@@ -35,13 +38,10 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
   }, [query]);
 
   function addFood(food: TrackerFood) {
-    // If already in list, increment weight by defaultWeight_g
     const existing = selectorItems.findIndex((i) => i.foodId === food.id);
     if (existing >= 0) {
       const updated = selectorItems.map((item, idx) =>
-        idx === existing
-          ? { ...item, weight_g: item.weight_g + food.defaultWeight_g }
-          : item
+        idx === existing ? { ...item, weight_g: item.weight_g + food.defaultWeight_g } : item
       );
       setSelectorItems(updated);
     } else {
@@ -62,12 +62,7 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
   function buildLoggedItems(): LoggedFoodItem[] {
     return selectorItems.map((sel) => {
       const food = TRACKER_FOODS.find((f) => f.id === sel.foodId)!;
-      return {
-        foodId: sel.foodId,
-        name: food.name,
-        weight_g: sel.weight_g,
-        ...macroScale(food, sel.weight_g),
-      };
+      return { foodId: sel.foodId, name: food.name, weight_g: sel.weight_g, ...macroScale(food, sel.weight_g) };
     });
   }
 
@@ -89,7 +84,6 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
     onLogged();
   }
 
-  // Running totals for selected items
   const runningTotals = useMemo(() => {
     const items = buildLoggedItems();
     return sumTotals(items);
@@ -117,12 +111,7 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
       if (result.type === "items") {
         const loggedItems: LoggedFoodItem[] = result.items.map((add) => {
           const food = TRACKER_FOODS.find((f) => f.id === add.foodId)!;
-          return {
-            foodId: add.foodId,
-            name: add.name,
-            weight_g: add.weight_g,
-            ...macroScale(food, add.weight_g),
-          };
+          return { foodId: add.foodId, name: add.name, weight_g: add.weight_g, ...macroScale(food, add.weight_g) };
         });
         const totals = sumTotals(loggedItems);
         const meal: LoggedMeal = {
@@ -148,20 +137,20 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
   return (
     <div>
       {/* Mode toggle */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+      <div className="flex gap-1.5 mb-3.5">
         {(["Selector", "Chat"] as const).map((mode) => {
           const active = (mode === "Chat") === chatMode;
           return (
             <button
               key={mode}
               onClick={() => setChatMode(mode === "Chat")}
-              style={{
-                flex: 1, padding: "8px 0", borderRadius: 8,
-                border: active ? "none" : "1px solid var(--border)",
-                background: active ? "var(--ink)" : "var(--beige)",
-                color: active ? "var(--cream)" : "var(--muted)",
-                fontSize: 12, fontWeight: active ? 600 : 400, cursor: "pointer",
-              }}
+              className={cn(
+                "flex-1 py-2 text-xs font-[inherit] cursor-pointer transition-all",
+                active
+                  ? "bg-[var(--ink)] text-[var(--cream)] font-semibold border-0"
+                  : "border border-[var(--border-color)] bg-[var(--beige)] font-normal",
+              )}
+              style={{ color: active ? undefined : "var(--ink-muted)" }}
             >
               {mode}
             </button>
@@ -181,14 +170,11 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
         <>
           {/* Quick meals */}
           {selectorItems.length === 0 && !query.trim() && (
-            <div style={{ marginBottom: 14 }}>
+            <div className="mb-3.5">
               <button
                 onClick={() => setShowQuickMeals(!showQuickMeals)}
-                style={{
-                  background: "none", border: "none", fontSize: 11, fontWeight: 600,
-                  color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.04em",
-                  cursor: "pointer", padding: 0, marginBottom: 8, display: "block",
-                }}
+                className="bg-transparent border-0 text-[11px] font-semibold uppercase tracking-[0.04em] cursor-pointer p-0 mb-2 block"
+                style={{ color: "var(--ink-muted)" }}
               >
                 Comidas rapidas {showQuickMeals ? "-" : "+"}
               </button>
@@ -204,18 +190,15 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
                 return (
                   <button
                     key={meal.id}
-                    onClick={() => {
-                      setSelectorItems(meal.items.map((i) => ({ foodId: i.foodId, weight_g: i.weight_g })));
-                    }}
+                    onClick={() => setSelectorItems(meal.items.map((i) => ({ foodId: i.foodId, weight_g: i.weight_g })))}
+                    className="flex justify-between items-center w-full px-3 py-2.5 mb-1.5 text-left cursor-pointer border-0"
                     style={{
-                      display: "flex", justifyContent: "space-between", alignItems: "center",
-                      width: "100%", padding: "10px 12px", background: "var(--cream)",
-                      border: "1px solid var(--border)", borderRadius: 10,
-                      cursor: "pointer", textAlign: "left", marginBottom: 6,
+                      background: "var(--cream)",
+                      border: "1px solid var(--border-color)",
                     }}
                   >
-                    <p style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>{meal.name}</p>
-                    <p style={{ fontSize: 11, color: "var(--muted)", flexShrink: 0, marginLeft: 8 }}>
+                    <p className="text-[13px] font-medium" style={{ color: "var(--ink)" }}>{meal.name}</p>
+                    <p className="text-[11px] shrink-0 ml-2" style={{ color: "var(--ink-muted)" }}>
                       {Math.round(totalKcal)} kcal · {Math.round(totalProtein)}g P
                     </p>
                   </button>
@@ -225,63 +208,50 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
           )}
 
           {/* Search */}
-          <input
+          <Input
             type="search"
             placeholder="Buscar alimento..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            style={{
-              width: "100%", padding: "10px 12px", borderRadius: 10,
-              border: "1px solid var(--border)", background: "var(--cream)",
-              fontSize: 13, fontFamily: "inherit", marginBottom: 10,
-              outline: "none",
-            }}
+            className="mb-2.5 text-[13px]"
+            style={{ background: "var(--cream)" }}
           />
 
           {/* Food list */}
           {query.trim() && (
-            <div style={{
-              background: "var(--cream)", borderRadius: 10, border: "1px solid var(--border)",
-              marginBottom: 14, maxHeight: 220, overflowY: "auto",
-            }}>
+            <Card className="mb-3.5 max-h-[220px] overflow-y-auto">
               {filtered.length === 0 ? (
-                <p style={{ fontSize: 12, color: "var(--muted)", padding: "12px 14px" }}>
-                  Sin resultados.
-                </p>
+                <p className="text-xs px-3.5 py-3" style={{ color: "var(--ink-muted)" }}>Sin resultados.</p>
               ) : (
                 filtered.map((food) => (
                   <button
                     key={food.id}
                     onClick={() => { addFood(food); setQuery(""); }}
-                    style={{
-                      display: "flex", justifyContent: "space-between", alignItems: "center",
-                      width: "100%", padding: "10px 14px", background: "none",
-                      border: "none", borderBottom: "1px solid var(--border)",
-                      cursor: "pointer", textAlign: "left",
-                    }}
+                    className="flex justify-between items-center w-full px-3.5 py-2.5 bg-transparent border-0 cursor-pointer text-left"
+                    style={{ borderBottom: "1px solid var(--border-color)" }}
                   >
                     <div>
-                      <p style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>{food.name}</p>
-                      <p style={{ fontSize: 11, color: "var(--muted)" }}>
+                      <p className="text-[13px] font-medium" style={{ color: "var(--ink)" }}>{food.name}</p>
+                      <p className="text-[11px]" style={{ color: "var(--ink-muted)" }}>
                         por 100g: {food.kcalPer100g} kcal · {food.proteinPer100g}g P
                       </p>
                     </div>
-                    <span style={{
-                      fontSize: 10, background: "var(--beige)", padding: "2px 8px",
-                      borderRadius: 20, color: "var(--muted)", flexShrink: 0, marginLeft: 8,
-                    }}>
+                    <span
+                      className="text-[10px] px-2 py-0.5 shrink-0 ml-2"
+                      style={{ background: "var(--beige)", color: "var(--ink-muted)", borderRadius: 20 }}
+                    >
                       {food.group}
                     </span>
                   </button>
                 ))
               )}
-            </div>
+            </Card>
           )}
 
           {/* Selected items */}
           {selectorItems.length > 0 && (
             <>
-              <p style={{ fontSize: 11, color: "var(--muted)", marginBottom: 8, fontWeight: 600 }}>
+              <p className="text-[11px] font-semibold mb-2" style={{ color: "var(--ink-muted)" }}>
                 SELECCIONADOS
               </p>
               {selectorItems.map((sel, idx) => {
@@ -289,56 +259,48 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
                 if (!food) return null;
                 const macros = macroScale(food, sel.weight_g);
                 return (
-                  <div
-                    key={`${sel.foodId}-${idx}`}
-                    style={{
-                      background: "var(--cream)", borderRadius: 10, border: "1px solid var(--border)",
-                      padding: "10px 12px", marginBottom: 8,
-                      display: "flex", alignItems: "center", gap: 10,
-                    }}
-                  >
-                    <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)", marginBottom: 3 }}>
-                        {food.name}
-                      </p>
-                      <p style={{ fontSize: 11, color: "var(--muted)" }}>
-                        {Math.round(macros.kcal)} kcal · {Math.round(macros.protein * 10) / 10}g P · {Math.round(macros.carbs * 10) / 10}g C
-                      </p>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <input
-                        type="number"
-                        min={1}
-                        max={2000}
-                        value={sel.weight_g}
-                        onChange={(e) => updateWeight(idx, e.target.value)}
-                        style={{
-                          width: 64, padding: "5px 6px", borderRadius: 6,
-                          border: "1px solid var(--border)", background: "var(--beige)",
-                          fontSize: 13, fontFamily: "inherit", textAlign: "center",
-                        }}
-                      />
-                      <span style={{ fontSize: 11, color: "var(--muted)" }}>g</span>
-                    </div>
-                    <button
-                      onClick={() => removeItem(idx)}
-                      style={{
-                        background: "none", border: "none", cursor: "pointer",
-                        fontSize: 16, color: "var(--muted)", padding: "0 4px",
-                      }}
-                    >
-                      x
-                    </button>
-                  </div>
+                  <Card key={`${sel.foodId}-${idx}`} className="mb-2">
+                    <CardContent className="pt-2.5 pb-2.5 flex items-center gap-2.5">
+                      <div className="flex-1">
+                        <p className="text-[13px] font-medium mb-0.5" style={{ color: "var(--ink)" }}>
+                          {food.name}
+                        </p>
+                        <p className="text-[11px]" style={{ color: "var(--ink-muted)" }}>
+                          {Math.round(macros.kcal)} kcal · {Math.round(macros.protein * 10) / 10}g P · {Math.round(macros.carbs * 10) / 10}g C
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min={1}
+                          max={2000}
+                          value={sel.weight_g}
+                          onChange={(e) => updateWeight(idx, e.target.value)}
+                          className="w-16 px-1.5 py-1 text-[13px] text-center font-[inherit]"
+                          style={{
+                            border: "1px solid var(--border-color)",
+                            background: "var(--beige)",
+                          }}
+                        />
+                        <span className="text-[11px]" style={{ color: "var(--ink-muted)" }}>g</span>
+                      </div>
+                      <button
+                        onClick={() => removeItem(idx)}
+                        className="bg-transparent border-0 cursor-pointer text-base px-1"
+                        style={{ color: "var(--ink-muted)" }}
+                      >
+                        x
+                      </button>
+                    </CardContent>
+                  </Card>
                 );
               })}
 
               {/* Running totals */}
-              <div style={{
-                background: "var(--beige)", borderRadius: 10, padding: 12,
-                marginBottom: 14, fontSize: 12,
-                display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6,
-              }}>
+              <div
+                className="grid grid-cols-3 gap-1.5 p-3 mb-3.5 text-xs"
+                style={{ background: "var(--beige)" }}
+              >
                 {[
                   { label: "Kcal",     val: Math.round(runningTotals.kcal) },
                   { label: "Proteina", val: `${Math.round(runningTotals.protein * 10) / 10}g` },
@@ -347,41 +309,30 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
                   { label: "Fibra",    val: `${Math.round(runningTotals.fiber * 10) / 10}g` },
                   { label: "Azucar",   val: `${Math.round(runningTotals.sugar * 10) / 10}g` },
                 ].map(({ label, val }) => (
-                  <div key={label} style={{ textAlign: "center" }}>
-                    <p style={{ fontSize: 10, color: "var(--muted)" }}>{label}</p>
-                    <p style={{ fontWeight: 600, color: "var(--ink)" }}>{val}</p>
+                  <div key={label} className="text-center">
+                    <p className="text-[10px]" style={{ color: "var(--ink-muted)" }}>{label}</p>
+                    <p className="font-semibold" style={{ color: "var(--ink)" }}>{val}</p>
                   </div>
                 ))}
               </div>
 
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  onClick={() => setSelectorItems([])}
-                  style={{
-                    flex: 1, padding: "10px 0", borderRadius: 10,
-                    border: "1px solid var(--border)", background: "var(--beige)",
-                    fontSize: 13, cursor: "pointer", color: "var(--muted)",
-                  }}
-                >
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setSelectorItems([])}>
                   Limpiar
-                </button>
-                <button
-                  onClick={handleLog}
+                </Button>
+                <Button
+                  className="flex-[2]"
                   disabled={saving}
-                  style={{
-                    flex: 2, padding: "10px 0", borderRadius: 10,
-                    border: "none", background: saving ? "var(--muted)" : "var(--ink)", color: "var(--cream)",
-                    fontSize: 13, fontWeight: 600, cursor: saving ? "default" : "pointer",
-                  }}
+                  onClick={handleLog}
                 >
                   {saving ? "Guardando..." : "Agregar al registro"}
-                </button>
+                </Button>
               </div>
             </>
           )}
 
           {selectorItems.length === 0 && !query.trim() && (
-            <p style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", padding: "24px 0" }}>
+            <p className="text-xs text-center py-6" style={{ color: "var(--ink-muted)" }}>
               Busca un alimento para anadir al registro.
             </p>
           )}
@@ -454,98 +405,82 @@ function ChatView({
 
   return (
     <div>
-      <div style={{
-        minHeight: 180, maxHeight: 280, overflowY: "auto",
-        marginBottom: 12, display: "flex", flexDirection: "column", gap: 8,
-      }}>
+      <div
+        className="min-h-[180px] max-h-[280px] overflow-y-auto mb-3 flex flex-col gap-2"
+      >
         {history.length === 0 ? (
-          <p style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", padding: "24px 0" }}>
+          <p className="text-xs text-center py-6" style={{ color: "var(--ink-muted)" }}>
             Describe lo que comiste...
           </p>
         ) : (
           history.map((msg, i) => (
-            <div key={i} style={{
-              alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
-              background: msg.role === "user" ? "var(--ink)" : "var(--beige)",
-              color: msg.role === "user" ? "var(--cream)" : "var(--ink)",
-              borderRadius: 10, padding: "8px 12px",
-              fontSize: 13, maxWidth: "80%",
-            }}>
+            <div
+              key={i}
+              className="px-3 py-2 text-[13px] max-w-[80%]"
+              style={{
+                alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
+                background: msg.role === "user" ? "var(--ink)" : "var(--beige)",
+                color: msg.role === "user" ? "var(--cream)" : "var(--ink)",
+              }}
+            >
               {msg.content}
             </div>
           ))
         )}
         {loading && (
-          <div style={{ alignSelf: "flex-start", fontSize: 12, color: "var(--muted)", padding: "4px 0" }}>
-            ...
-          </div>
+          <div className="self-start text-xs py-1" style={{ color: "var(--ink-muted)" }}>...</div>
         )}
         <div ref={chatEndRef} />
       </div>
 
       {(recording || transcribing) && (
-        <div style={{
-          display: "flex", alignItems: "center", gap: 8,
-          padding: "6px 10px", marginBottom: 8,
-          background: recording ? "#fde8e8" : "var(--beige)",
-          borderRadius: 8, fontSize: 12,
-        }}>
+        <div
+          className="flex items-center gap-2 px-2.5 py-1.5 mb-2 text-xs"
+          style={{ background: recording ? "#fde8e8" : "var(--beige)" }}
+        >
           {recording && (
             <>
-              <span style={{
-                width: 8, height: 8, borderRadius: "50%", background: "#e53e3e",
-                animation: "pulse 1s ease-in-out infinite",
-              }} />
-              <span style={{ color: "#c62828" }}>
-                Grabando... {recordingSeconds}s
-              </span>
+              <span
+                className="w-2 h-2"
+                style={{ borderRadius: "50%", background: "#e53e3e", animation: "pulse 1s ease-in-out infinite" }}
+              />
+              <span style={{ color: "#c62828" }}>Grabando... {recordingSeconds}s</span>
             </>
           )}
-          {transcribing && (
-            <span style={{ color: "var(--muted)" }}>Transcribiendo...</span>
-          )}
+          {transcribing && <span style={{ color: "var(--ink-muted)" }}>Transcribiendo...</span>}
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 8 }}>
-        <input
+      <div className="flex gap-2">
+        <Input
           type="text"
           value={input}
           placeholder="2 huevos y avena..."
           onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") onSend(); }}
           disabled={loading || transcribing}
-          style={{
-            flex: 1, padding: "10px 12px", borderRadius: 10,
-            border: "1px solid var(--border)", background: "var(--cream)",
-            fontSize: 13, fontFamily: "inherit", outline: "none",
-          }}
+          className="flex-1 text-[13px]"
+          style={{ background: "var(--cream)" }}
         />
         <button
           onClick={toggleRecording}
           disabled={loading || transcribing}
           title={recording ? "Detener grabacion" : "Grabar voz"}
+          className="px-3 py-2 text-base shrink-0 border cursor-pointer"
           style={{
-            padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)",
             background: recording ? "#e53e3e" : "var(--beige)",
-            color: recording ? "white" : "var(--muted)",
-            fontSize: 16, cursor: loading || transcribing ? "default" : "pointer", flexShrink: 0,
+            color: recording ? "white" : "var(--ink-muted)",
+            borderColor: "var(--border-color)",
           }}
         >
           {transcribing ? "..." : recording ? "\u25A0" : "\uD83C\uDF99\uFE0F"}
         </button>
-        <button
+        <Button
           onClick={onSend}
           disabled={loading || !input.trim()}
-          style={{
-            padding: "10px 16px", borderRadius: 10, border: "none",
-            background: loading || !input.trim() ? "var(--muted)" : "var(--ink)",
-            color: "var(--cream)", fontSize: 13, fontWeight: 600,
-            cursor: loading || !input.trim() ? "default" : "pointer",
-          }}
         >
           Enviar
-        </button>
+        </Button>
       </div>
     </div>
   );

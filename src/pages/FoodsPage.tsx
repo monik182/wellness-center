@@ -3,17 +3,17 @@ import {
   FOODS, GROUP_ORDER, GROUP_COLORS, TAG_COLORS,
   type Food, type FoodGroup,
 } from "../data/foods";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 
 function MacroBadge({ value, label, highlight }: { value: string | number; label: string; highlight?: string }) {
   return (
-    <div style={{
-      background: "var(--beige)", borderRadius: 6,
-      padding: "3px 6px", textAlign: "center",
-    }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: highlight || "var(--ink)" }}>
-        {typeof value === "number" ? value : value}
+    <div className="text-center px-1.5 py-0.5" style={{ background: "var(--beige)" }}>
+      <div className="text-[13px] font-bold" style={{ color: highlight || "var(--ink)" }}>
+        {value}
       </div>
-      <div style={{ fontSize: 9.5, color: "var(--muted)" }}>{label}</div>
+      <div className="text-[9.5px]" style={{ color: "var(--ink-muted)" }}>{label}</div>
     </div>
   );
 }
@@ -22,52 +22,44 @@ function FoodItem({ food }: { food: Food }) {
   const gc = GROUP_COLORS[food.group];
   const isEliminated = food.group === "❌ Eliminado";
   return (
-    <div style={{
-      background: "var(--cream)",
-      borderRadius: 14, padding: 12, marginBottom: 8,
-      border: isEliminated ? "1px dashed #ccc" : "1px solid var(--border)",
-    }}>
-      {/* Header row */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, gap: 6 }}>
-        <div style={{ flex: 1 }}>
-          <span style={{ fontWeight: 600, fontSize: 13.5, color: "var(--ink)" }}>
-            {isEliminated ? "⚠️ " : ""}{food.name}
-          </span>
-          <span style={{ fontSize: 11.5, color: "var(--muted)", marginLeft: 6, fontStyle: "italic" }}>
-            {food.portion}
-          </span>
+    <Card className="mb-2" style={{ borderStyle: isEliminated ? "dashed" : "solid", borderColor: isEliminated ? "#ccc" : undefined }}>
+      <CardContent className="pt-3 pb-3">
+        {/* Header row */}
+        <div className="flex justify-between items-start mb-2 gap-1.5">
+          <div className="flex-1">
+            <span className="font-semibold text-[13.5px]" style={{ color: "var(--ink)" }}>
+              {isEliminated ? "⚠️ " : ""}{food.name}
+            </span>
+            <span className="text-[11.5px] ml-1.5 italic" style={{ color: "var(--ink-muted)" }}>
+              {food.portion}
+            </span>
+          </div>
+          <div className="flex gap-1 flex-wrap justify-end shrink-0">
+            <Badge className="text-[10px] px-1.5 py-0 font-medium" style={{ background: gc.bg, color: gc.text }}>
+              {food.group}
+            </Badge>
+            {food.tags.map((tag, ti) => {
+              const tc = TAG_COLORS[tag] || { bg: "var(--border-color)", text: "var(--ink)" };
+              return (
+                <Badge key={ti} className="text-[10px] px-1.5 py-0 font-medium" style={{ background: tc.bg, color: tc.text }}>
+                  {tag}
+                </Badge>
+              );
+            })}
+          </div>
         </div>
-        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end", flexShrink: 0 }}>
-          <span style={{
-            fontSize: 10, padding: "2px 7px", borderRadius: 10,
-            background: gc.bg, color: gc.text, fontWeight: 500, whiteSpace: "nowrap",
-          }}>
-            {food.group}
-          </span>
-          {food.tags.map((tag, ti) => {
-            const tc = TAG_COLORS[tag] || { bg: "var(--border)", text: "var(--ink)" };
-            return (
-              <span key={ti} style={{
-                fontSize: 10, padding: "2px 7px", borderRadius: 10,
-                background: tc.bg, color: tc.text, fontWeight: 500, whiteSpace: "nowrap",
-              }}>
-                {tag}
-              </span>
-            );
-          })}
-        </div>
-      </div>
 
-      {/* Macros grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 4, fontSize: 11 }}>
-        <MacroBadge value={food.kcal} label="kcal" />
-        <MacroBadge value={`${food.protein}g`} label="proteína" highlight={food.protein >= 8 ? "var(--green)" : undefined} />
-        <MacroBadge value={`${food.carbs}g`} label="carbs" />
-        <MacroBadge value={`${food.fat}g`} label="grasa" highlight={food.fat >= 8 ? "var(--lavender)" : undefined} />
-        <MacroBadge value={`${food.sugar}g`} label="azúcar" highlight={food.sugar > 5 ? "var(--lavender)" : undefined} />
-        <MacroBadge value={`${food.fiber}g`} label="fibra" highlight={food.fiber >= 3 ? "var(--green)" : undefined} />
-      </div>
-    </div>
+        {/* Macros grid */}
+        <div className="grid grid-cols-3 gap-1 text-[11px]">
+          <MacroBadge value={food.kcal} label="kcal" />
+          <MacroBadge value={`${food.protein}g`} label="proteína" highlight={food.protein >= 8 ? "var(--green)" : undefined} />
+          <MacroBadge value={`${food.carbs}g`} label="carbs" />
+          <MacroBadge value={`${food.fat}g`} label="grasa" highlight={food.fat >= 8 ? "var(--lavender)" : undefined} />
+          <MacroBadge value={`${food.sugar}g`} label="azúcar" highlight={food.sugar > 5 ? "var(--lavender)" : undefined} />
+          <MacroBadge value={`${food.fiber}g`} label="fibra" highlight={food.fiber >= 3 ? "var(--green)" : undefined} />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -84,24 +76,19 @@ export default function FoodsPage() {
       )
     : FOODS;
 
-  // Build ordered group list from filtered results
   const groups = GROUP_ORDER.filter((g) => filtered.some((f) => f.group === g));
 
   return (
     <div>
       {/* Sticky search */}
-      <div style={{ position: "sticky", top: 0, zIndex: 5, paddingBottom: 8, background: "var(--beige)" }}>
-        <input
+      <div className="sticky top-0 z-5 pb-2" style={{ background: "var(--beige)" }}>
+        <Input
           type="text"
           placeholder="🔍 Buscar alimento, grupo o tag..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{
-            width: "100%", padding: "11px 16px",
-            borderRadius: 30, border: "1px solid var(--border)",
-            background: "var(--cream)", fontFamily: "'Poppins', sans-serif",
-            fontSize: 13.5, outline: "none", color: "var(--ink)",
-          }}
+          className="text-[13.5px]"
+          style={{ background: "var(--cream)", color: "var(--ink)" }}
         />
       </div>
 
@@ -109,11 +96,7 @@ export default function FoodsPage() {
         const items = filtered.filter((f) => f.group === group);
         return (
           <div key={group}>
-            <p style={{
-              fontSize: 12, fontWeight: 600, color: "var(--muted)",
-              margin: "14px 0 8px 4px",
-              textTransform: "uppercase", letterSpacing: 0.5,
-            }}>
+            <p className="text-xs font-semibold uppercase tracking-wide mt-3.5 mb-2 ml-1" style={{ color: "var(--ink-muted)" }}>
               {group}
             </p>
             {items
@@ -124,7 +107,7 @@ export default function FoodsPage() {
       })}
 
       {filtered.length === 0 && (
-        <p style={{ textAlign: "center", color: "var(--muted)", fontSize: 13, marginTop: 24 }}>
+        <p className="text-center text-[13px] mt-6" style={{ color: "var(--ink-muted)" }}>
           No se encontró "{search}"
         </p>
       )}

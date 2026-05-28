@@ -1,73 +1,50 @@
 import { NavLink } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
 const NAV = [
-  { to: "/",             label: "Comidas",   emoji: "🍽️" },
-  { to: "/schedule",     label: "Horarios",  emoji: "⏰" },
-  { to: "/macro-targets", label: "Macros",   emoji: "🎯" },
-  { to: "/wheel",        label: "Wheel",     emoji: "🎡" },
-  { to: "/foods",        label: "Alimentos", emoji: "📊" },
-  { to: "/prep",         label: "Prep",      emoji: "🔪" },
-  { to: "/shopping",     label: "Compras",   emoji: "🛒" },
-  { to: "/rules",            label: "Reglas",   emoji: "📏" },
-  { to: "/calorie-tracker", label: "Tracker",  emoji: "📝" },
+  { to: "/",                label: "Comidas",   emoji: "🍽️" },
+  { to: "/schedule",        label: "Horarios",  emoji: "⏰" },
+  { to: "/macro-targets",   label: "Macros",    emoji: "🎯" },
+  { to: "/wheel",           label: "Wheel",     emoji: "🎡" },
+  { to: "/foods",           label: "Alimentos", emoji: "📊" },
+  { to: "/prep",            label: "Prep",      emoji: "🔪" },
+  { to: "/shopping",        label: "Compras",   emoji: "🛒" },
+  { to: "/rules",           label: "Reglas",    emoji: "📏" },
+  { to: "/calorie-tracker", label: "Tracker",   emoji: "📝" },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+    <div className="flex flex-col min-h-screen">
       {/* Header */}
-      <header style={{
-        textAlign: "center",
-        padding: "20px 16px 8px",
-        background: "var(--beige)",
-        position: "sticky",
-        top: 0,
-        zIndex: 20,
-        borderBottom: "1px solid var(--border)",
-      }}>
-        <h1 style={{
-          fontFamily: "'La Belle Aurore', cursive",
-          fontSize: 26,
-          fontWeight: 400,
-          color: "var(--ink)",
-          margin: 0,
-        }}>
+      <header className="sticky top-0 z-20 bg-[var(--beige)] border-b border-[var(--border-color)] text-center px-4 pt-5 pb-2">
+        <h1 style={{ fontFamily: "'La Belle Aurore', cursive", fontSize: 26, fontWeight: 400, color: "var(--ink)", margin: 0 }}>
           Plan de comidas
         </h1>
-        <p style={{ fontSize: 11, color: "var(--muted)", fontWeight: 300, margin: "2px 0 0" }}>
+        <p className="text-[11px] font-light mt-0.5" style={{ color: "var(--ink-muted)" }}>
           ~1,500 kcal/día · Gym mañana/tarde + descanso
         </p>
       </header>
 
       {/* Top nav (scrollable) */}
-      <nav style={{
-        display: "flex",
-        gap: 4,
-        padding: "8px 8px",
-        overflowX: "auto",
-        background: "var(--beige)",
-        scrollbarWidth: "none",
-        flexShrink: 0,
-        borderBottom: "1px solid var(--border)",
-      }}>
+      <nav
+        className="flex gap-1 px-2 py-2 bg-[var(--beige)] border-b border-[var(--border-color)] overflow-x-auto shrink-0"
+        style={{ scrollbarWidth: "none" }}
+      >
         {NAV.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.to === "/"}
-            style={({ isActive }) => ({
-              padding: "7px 12px",
-              borderRadius: 24,
-              border: "none",
-              background: isActive ? "var(--ink)" : "var(--cream)",
-              color: isActive ? "var(--cream)" : "var(--muted)",
-              fontSize: 11.5,
-              fontWeight: isActive ? 600 : 400,
-              whiteSpace: "nowrap",
-              transition: "all 0.18s",
-              fontFamily: "'Poppins', sans-serif",
-              flexShrink: 0,
-            })}
+            className={({ isActive }) =>
+              cn(
+                "px-3 py-1.5 rounded-sm text-[11.5px] whitespace-nowrap shrink-0 transition-all duration-[180ms] border-0",
+                isActive
+                  ? "bg-[var(--ink)] text-[var(--cream)] font-semibold"
+                  : "bg-[var(--cream)] font-normal",
+              )
+            }
+            style={({ isActive }) => ({ color: isActive ? "var(--cream)" : "var(--ink-muted)" })}
           >
             {item.emoji} {item.label}
           </NavLink>
@@ -75,7 +52,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </nav>
 
       {/* Page content */}
-      <main style={{ flex: 1, padding: "12px 10px 32px" }}>
+      <main className="flex-1 px-2.5 pt-3 pb-8">
         {children}
       </main>
     </div>

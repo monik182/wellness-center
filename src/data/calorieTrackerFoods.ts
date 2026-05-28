@@ -35,6 +35,7 @@ const PORTION_WEIGHTS: Record<string, number> = {
   "Red beans (cocidos)": 100,
   "Totopos de maíz": 30,
   "Wrap de proteína": 65,
+  "Guisantes finos ultracongelados": 100,
   // Vegetables
   "Brócoli": 100,
   "Canónigos": 50,
@@ -47,6 +48,7 @@ const PORTION_WEIGHTS: Record<string, number> = {
   "Pimentones": 150,
   "Rúcula": 30,
   "Tomate cherry": 100,
+  "Espárrago verde troceado ultracongelado": 100,
   // Fruits
   "Aguacate": 50,
   "Banana": 120,

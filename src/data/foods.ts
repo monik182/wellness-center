@@ -266,6 +266,13 @@ export const FOODS: Food[] = [
     kcal: 130, protein: 12, carbs: 12, fat: 3.5, sugar: 1, fiber: 5,
     tags: ["Alta proteína", "Alta fibra"],
   },
+  {
+    name: "Guisantes finos ultracongelados",
+    group: "Carbohidrato",
+    portion: "100g",
+    kcal: 82, protein: 6, carbs: 11, fat: 0.4, sugar: 2.8, fiber: 5,
+    tags: ["Baja cal"],
+  },
 
   // ─── VEGETABLES ──────────────────────────────────────────────────
   {
@@ -352,6 +359,13 @@ export const FOODS: Food[] = [
     kcal: 18, protein: 0.9, carbs: 3.9, fat: 0.1, sugar: 2.6, fiber: 1.2,
     tags: ["Baja cal"],
     wheelCategory: "veggie",
+  },
+  {
+    name: "Espárrago verde troceado ultracongelado",
+    group: "Verdura",
+    portion: "100g",
+    kcal: 28, protein: 2.9, carbs: 2, fat: 0.6, sugar: 1.9, fiber: 1.5,
+    tags: ["Baja cal"],
   },
 
   // ─── FRUITS ──────────────────────────────────────────────────────
