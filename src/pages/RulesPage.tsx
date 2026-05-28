@@ -3,10 +3,10 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export default function RulesPage() {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-5">
       {/* Key rules */}
       <Card style={{ background: "var(--peach)" }}>
-        <CardContent className="pt-4">
+        <CardContent className="pt-5 pb-5">
           <p className="font-semibold text-sm mb-2.5" style={{ color: "var(--ink)" }}>
             ⚡ Las 2 reglas clave
           </p>
@@ -20,7 +20,7 @@ export default function RulesPage() {
 
       {/* What changed */}
       <Card>
-        <CardContent className="pt-4">
+        <CardContent className="pt-5 pb-5">
           <p className="font-semibold text-sm mb-2.5" style={{ color: "var(--ink)" }}>
             🔧 Lo que cambió
           </p>
@@ -43,7 +43,7 @@ export default function RulesPage() {
 
       {/* Sweets rules */}
       <Card>
-        <CardContent className="pt-4">
+        <CardContent className="pt-5 pb-5">
           <p className="font-semibold text-sm mb-2.5" style={{ color: "var(--ink)" }}>
             🍫 Reglas del dulce
           </p>

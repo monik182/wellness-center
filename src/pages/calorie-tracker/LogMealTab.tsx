@@ -137,7 +137,7 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
   return (
     <div>
       {/* Mode toggle */}
-      <div className="flex gap-1.5 mb-3.5">
+      <div className="flex gap-1.5 mb-5">
         {(["Selector", "Chat"] as const).map((mode) => {
           const active = (mode === "Chat") === chatMode;
           return (
@@ -298,7 +298,7 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
 
               {/* Running totals */}
               <div
-                className="grid grid-cols-3 gap-1.5 p-3 mb-3.5 text-xs"
+                className="grid grid-cols-3 gap-1.5 p-5 mb-4 text-xs"
                 style={{ background: "var(--beige)" }}
               >
                 {[

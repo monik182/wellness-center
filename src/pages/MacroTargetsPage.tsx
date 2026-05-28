@@ -4,22 +4,22 @@ import { Separator } from "@/components/ui/separator";
 
 export default function MacroTargetsPage() {
   return (
-    <div className="pb-5">
+    <div className="pb-8">
       {/* Daily Budget */}
-      <div className="mb-5">
+      <div className="mb-8">
         <h2 className="text-lg font-bold mb-3" style={{ color: "var(--ink)" }}>
           📊 Daily Calorie & Macro Budget
         </h2>
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-2 gap-4">
           <Card>
-            <CardContent className="pt-3.5 pb-3.5">
+            <CardContent className="pt-5 pb-5">
               <p className="text-[13px] font-semibold mb-1.5" style={{ color: "var(--ink)" }}>Regular Day</p>
               <p className="text-sm font-semibold" style={{ color: "var(--green)" }}>1,400–1,550 kcal</p>
               <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-muted)" }}>No gym</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-3.5 pb-3.5">
+            <CardContent className="pt-5 pb-5">
               <p className="text-[13px] font-semibold mb-1.5" style={{ color: "var(--ink)" }}>Gym Day</p>
               <p className="text-sm font-semibold" style={{ color: "var(--blue)" }}>1,600–1,700 kcal</p>
               <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-muted)" }}>+200 kcal pre/post</p>
@@ -29,7 +29,7 @@ export default function MacroTargetsPage() {
       </div>
 
       {/* Macro Targets Table */}
-      <div className="mb-5">
+      <div className="mb-8">
         <h2 className="text-lg font-bold mb-3" style={{ color: "var(--ink)" }}>
           🎯 Macronutrient Targets
         </h2>
@@ -70,7 +70,7 @@ export default function MacroTargetsPage() {
       </div>
 
       {/* Regular Day Breakdown */}
-      <div className="mb-5">
+      <div className="mb-8">
         <h2 className="text-lg font-bold mb-3" style={{ color: "var(--ink)" }}>
           📅 Regular Day Breakdown
         </h2>
@@ -180,7 +180,7 @@ export default function MacroTargetsPage() {
         />
 
         <Card className="mt-3">
-          <CardContent className="pt-3.5 pb-3.5">
+          <CardContent className="pt-5 pb-5">
             <p className="text-[13px] font-semibold mb-2" style={{ color: "var(--ink)" }}>
               📌 Total Regular Day
             </p>
@@ -195,7 +195,7 @@ export default function MacroTargetsPage() {
       </div>
 
       {/* Gym Day Breakdown */}
-      <div className="mb-5">
+      <div className="mb-8">
         <h2 className="text-lg font-bold mb-3" style={{ color: "var(--ink)" }}>
           💪 Gym Day Breakdown
         </h2>
@@ -272,7 +272,7 @@ export default function MacroTargetsPage() {
         />
 
         <Card className="mt-3 mb-3">
-          <CardContent className="pt-3.5 pb-3.5">
+          <CardContent className="pt-5 pb-5">
             <p className="text-[13px] font-semibold mb-1.5" style={{ color: "var(--ink)" }}>
               🌙 Optional Evening Snack (if hungry)
             </p>
@@ -282,7 +282,7 @@ export default function MacroTargetsPage() {
         </Card>
 
         <Card className="mt-3">
-          <CardContent className="pt-3.5 pb-3.5">
+          <CardContent className="pt-5 pb-5">
             <p className="text-[13px] font-semibold mb-2" style={{ color: "var(--ink)" }}>
               📌 Total Gym Day
             </p>
@@ -297,13 +297,13 @@ export default function MacroTargetsPage() {
       </div>
 
       {/* Fiber & Sugar Reference */}
-      <div className="mb-5">
+      <div className="mb-8">
         <h2 className="text-lg font-bold mb-3" style={{ color: "var(--ink)" }}>
           🌱 Fiber & Sugar Reference
         </h2>
 
         <Card className="mb-3">
-          <CardContent className="pt-3.5 pb-3.5">
+          <CardContent className="pt-5 pb-5">
             <p className="text-[13px] font-semibold mb-2.5" style={{ color: "var(--ink)" }}>
               Fiber Sources (aim for 25–30g/day)
             </p>
@@ -321,7 +321,7 @@ export default function MacroTargetsPage() {
         </Card>
 
         <Card>
-          <CardContent className="pt-3.5 pb-3.5">
+          <CardContent className="pt-5 pb-5">
             <p className="text-[13px] font-semibold mb-2.5" style={{ color: "var(--ink)" }}>
               Sugar Intake (keep &lt;25g/day)
             </p>
@@ -341,12 +341,12 @@ export default function MacroTargetsPage() {
       </div>
 
       {/* Quick Checklist */}
-      <div className="mb-5">
+      <div className="mb-8">
         <h2 className="text-lg font-bold mb-3" style={{ color: "var(--ink)" }}>
           ✅ Quick Macro Checklist
         </h2>
         <Card>
-          <CardContent className="pt-3.5 pb-3.5">
+          <CardContent className="pt-5 pb-5">
             <div className="text-xs leading-loose" style={{ color: "var(--ink)" }}>
               {[
                 "Breakfast: 220–310 kcal, 24–28g protein",
@@ -406,7 +406,7 @@ function MealSection({
 }) {
   return (
     <Card className="mb-3">
-      <CardContent className="pt-3.5 pb-3.5">
+      <CardContent className="pt-5 pb-5">
         <div className="mb-3">
           <p className="text-[13px] font-semibold mb-1.5" style={{ color: "var(--ink)" }}>
             {emoji} {mealType}

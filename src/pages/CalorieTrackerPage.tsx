@@ -23,7 +23,7 @@ export default function CalorieTrackerPage() {
   return (
     <div className="pb-8">
       {/* Tab bar */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Tab)} className="mb-4">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Tab)} className="mb-6">
         <TabsList className="w-full">
           {(["today", "log", "history"] as Tab[]).map((tab) => (
             <TabsTrigger key={tab} value={tab} className="flex-1">

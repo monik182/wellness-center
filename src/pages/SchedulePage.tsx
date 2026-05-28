@@ -3,10 +3,10 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export default function SchedulePage() {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-5">
       {SCHEDULES.map((day, di) => (
         <Card key={di}>
-          <CardContent className="pt-4">
+          <CardContent className="pt-5 pb-5">
             <p className="font-semibold text-[15px] mb-3" style={{ color: "var(--ink)" }}>
               {day.title}
             </p>

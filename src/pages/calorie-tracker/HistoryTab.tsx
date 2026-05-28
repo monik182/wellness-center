@@ -64,7 +64,7 @@ export default function HistoryTab() {
   return (
     <div>
       {/* Sort toggle */}
-      <div className="flex justify-end mb-3">
+      <div className="flex justify-end mb-5">
         <Button
           variant="outline"
           size="sm"
@@ -85,7 +85,7 @@ export default function HistoryTab() {
           const dayTotal = sumMealTotals(dayMeals);
 
           return (
-            <div key={date} className="mb-5">
+            <div key={date} className="mb-8">
               <div className="flex justify-between items-baseline mb-2">
                 <p className="text-[13px] font-semibold capitalize" style={{ color: "var(--ink)" }}>
                   {formatDate(date)}
@@ -127,7 +127,7 @@ export default function HistoryTab() {
 function DayTotalsGrid({ totals }: { totals: MacroTotals }) {
   return (
     <Card className="mb-2">
-      <CardContent className="py-2.5 grid grid-cols-3 gap-1.5">
+      <CardContent className="py-4 grid grid-cols-3 gap-1.5">
         {[
           { label: "Kcal",     val: Math.round(totals.kcal) },
           { label: "Proteina", val: `${Math.round(totals.protein * 10) / 10}g` },
@@ -158,7 +158,7 @@ function HistoryMealCard({
     <Card className="mb-2 overflow-hidden">
       <button
         onClick={onToggle}
-        className="w-full text-left px-3 py-2.5 bg-transparent border-0 cursor-pointer flex justify-between items-start"
+        className="w-full text-left px-4 py-3.5 bg-transparent border-0 cursor-pointer flex justify-between items-start"
       >
         <div>
           <p className="text-xs mb-0.5" style={{ color: "var(--ink-muted)" }}>{meal.time}</p>

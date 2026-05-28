@@ -7,7 +7,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 function MealCard({ option, color }: { option: MealOption; color: string }) {
   return (
     <Card className="mb-2.5" style={{ background: "var(--peach)" }}>
-      <CardContent className="pt-3.5 pb-3.5">
+      <CardContent className="pt-5 pb-5">
         <div className="flex justify-between items-baseline mb-1.5 flex-wrap gap-1.5">
           <span className="font-semibold text-sm" style={{ color: "var(--ink)" }}>{option.name}</span>
           <Badge className="text-xs font-medium" style={{ background: "var(--green)", color: "var(--ink)" }}>
@@ -45,7 +45,7 @@ export default function MealsPage() {
   const [open, setOpen] = useState<Record<string, boolean>>({ desayuno: true });
 
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-5">
       {Object.entries(MEALS).map(([key, cat]) => {
         const isOpen = !!open[key];
         const color = ACCENT_COLORS[key] || "#E8E0D4";
@@ -57,7 +57,7 @@ export default function MealsPage() {
           >
             <Card className="overflow-hidden">
               <CollapsibleTrigger
-                className="w-full px-4 py-3.5 flex justify-between items-center bg-transparent border-0 cursor-pointer"
+                className="w-full px-4 py-4 flex justify-between items-center bg-transparent border-0 cursor-pointer"
               >
                 <span className="text-[16px] font-semibold" style={{ color: "var(--ink)" }}>
                   {cat.emoji} {cat.title}
@@ -71,7 +71,7 @@ export default function MealsPage() {
                 >▼</span>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <div className="px-3.5 pb-3.5">
+                <div className="px-4 pb-4">
                   {cat.options.map((opt, i) => (
                     <MealCard key={i} option={opt} color={color} />
                   ))}

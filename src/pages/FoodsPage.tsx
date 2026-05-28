@@ -23,7 +23,7 @@ function FoodItem({ food }: { food: Food }) {
   const isEliminated = food.group === "❌ Eliminado";
   return (
     <Card className="mb-2" style={{ borderStyle: isEliminated ? "dashed" : "solid", borderColor: isEliminated ? "#ccc" : undefined }}>
-      <CardContent className="pt-3 pb-3">
+      <CardContent className="pt-4 pb-4">
         {/* Header row */}
         <div className="flex justify-between items-start mb-2 gap-1.5">
           <div className="flex-1">
@@ -96,7 +96,7 @@ export default function FoodsPage() {
         const items = filtered.filter((f) => f.group === group);
         return (
           <div key={group}>
-            <p className="text-xs font-semibold uppercase tracking-wide mt-3.5 mb-2 ml-1" style={{ color: "var(--ink-muted)" }}>
+            <p className="text-xs font-semibold uppercase tracking-wide mt-6 mb-3 ml-1" style={{ color: "var(--ink-muted)" }}>
               {group}
             </p>
             {items

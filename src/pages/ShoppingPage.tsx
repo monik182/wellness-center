@@ -13,9 +13,9 @@ export default function ShoppingPage() {
   const checkedCount = allKeys.filter((k) => checked[k]).length;
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-4">
       <Card>
-        <CardContent className="py-2.5 px-4 flex justify-between items-center">
+        <CardContent className="py-4 px-4 flex justify-between items-center">
           <span className="text-[13px]" style={{ color: "var(--ink-muted)" }}>Progreso</span>
           <span className="text-[13px] font-semibold" style={{ color: "var(--green)" }}>
             {checkedCount}/{allKeys.length}
@@ -25,7 +25,7 @@ export default function ShoppingPage() {
 
       {Object.entries(GROCERY_LIST).map(([cat, items]) => (
         <Card key={cat}>
-          <CardContent className="pt-3.5 pb-3.5">
+          <CardContent className="pt-5 pb-5">
             <p className="font-semibold text-[13px] mb-2" style={{ color: "var(--ink)" }}>
               {cat}
             </p>

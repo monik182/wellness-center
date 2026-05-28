@@ -273,6 +273,13 @@ export const FOODS: Food[] = [
     kcal: 82, protein: 6, carbs: 11, fat: 0.4, sugar: 2.8, fiber: 5,
     tags: ["Baja cal"],
   },
+  {
+    name: "Pringles naturales",
+    group: "Carbohidrato",
+    portion: "30g (1 porcion)",
+    kcal: 154, protein: 1.7, carbs: 15, fat: 9, sugar: 1.2, fiber: 1.5,
+    tags: [],
+  },
 
   // ─── VEGETABLES ──────────────────────────────────────────────────
   {

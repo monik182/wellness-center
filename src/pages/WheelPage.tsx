@@ -56,7 +56,7 @@ export default function WheelPage() {
   return (
     <div className="flex flex-col" style={{ minHeight: "calc(100vh - 110px)" }}>
       {/* Progress dots */}
-      <div className="flex justify-center gap-1.5 px-4 pt-1 pb-3 items-center">
+      <div className="flex justify-center gap-1.5 px-4 pt-2 pb-4 items-center">
         {WHEEL_STEPS.map((step, i) => {
           const meta = WHEEL_CATEGORY_META[step];
           const done = selections[step] != null;
@@ -87,7 +87,7 @@ export default function WheelPage() {
 
       {/* Selected chips */}
       {Object.keys(selections).some((k) => selections[k]) && !showSummary && (
-        <div className="flex gap-1.5 px-3 pb-2.5 flex-wrap justify-center">
+        <div className="flex gap-1.5 px-3 pb-4 flex-wrap justify-center">
           {WHEEL_STEPS.map((step, i) => {
             const sel = selections[step];
             if (!sel) return null;

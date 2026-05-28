@@ -36,6 +36,7 @@ const PORTION_WEIGHTS: Record<string, number> = {
   "Totopos de maíz": 30,
   "Wrap de proteína": 65,
   "Guisantes finos ultracongelados": 100,
+  "Pringles naturales": 30,
   // Vegetables
   "Brócoli": 100,
   "Canónigos": 50,

@@ -64,7 +64,7 @@ function MealCard({
     <Card className="mb-2 overflow-hidden">
       <button
         onClick={onToggle}
-        className="w-full text-left px-3 py-2.5 bg-transparent border-0 cursor-pointer flex justify-between items-start"
+        className="w-full text-left px-4 py-3.5 bg-transparent border-0 cursor-pointer flex justify-between items-start"
       >
         <div>
           <p className="text-xs mb-0.5" style={{ color: "var(--ink-muted)" }}>{meal.time}</p>
@@ -391,7 +391,7 @@ export default function TodayTab({
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-3.5">
+      <div className="flex justify-between items-center mb-5">
         <p className="text-[13px] capitalize" style={{ color: "var(--ink-muted)" }}>
           {dateDisplay}
         </p>
@@ -405,8 +405,8 @@ export default function TodayTab({
         </label>
       </div>
 
-      <Card className="mb-4">
-        <CardContent className="pt-3.5 pb-3.5">
+      <Card className="mb-5">
+        <CardContent className="pt-5 pb-5">
           <p className="text-[11px] mb-3" style={{ color: "var(--ink-muted)" }}>
             {gymDay ? "Gym" : "Normal"} · objetivo {targets.kcal} kcal
           </p>
@@ -421,8 +421,8 @@ export default function TodayTab({
 
       {/* AI Suggestions */}
       {!loading && (
-        <Card className="mb-4">
-          <CardContent className="pt-3.5 pb-3.5">
+        <Card className="mb-5">
+          <CardContent className="pt-5 pb-5">
             <div className="flex justify-between items-center mb-2.5">
               <p className="text-[11px] font-semibold uppercase tracking-[0.04em]" style={{ color: "var(--ink-muted)" }}>
                 Sugerencias

@@ -17,7 +17,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-[var(--beige)] border-b border-[var(--border-color)] text-center px-4 pt-5 pb-2">
+      <header className="sticky top-0 z-20 bg-[var(--beige)] border-b border-[var(--border-color)] text-center px-5 pt-6 pb-3">
         <h1 style={{ fontFamily: "'La Belle Aurore', cursive", fontSize: 26, fontWeight: 400, color: "var(--ink)", margin: 0 }}>
           Plan de comidas
         </h1>
@@ -28,7 +28,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Top nav (scrollable) */}
       <nav
-        className="flex gap-1 px-2 py-2 bg-[var(--beige)] border-b border-[var(--border-color)] overflow-x-auto shrink-0"
+        className="flex gap-1.5 px-3 py-2.5 bg-[var(--beige)] border-b border-[var(--border-color)] overflow-x-auto shrink-0"
         style={{ scrollbarWidth: "none" }}
       >
         {NAV.map((item) => (
@@ -52,7 +52,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </nav>
 
       {/* Page content */}
-      <main className="flex-1 px-2.5 pt-3 pb-8">
+      <main className="flex-1 px-4 pt-6 pb-12">
         {children}
       </main>
     </div>
