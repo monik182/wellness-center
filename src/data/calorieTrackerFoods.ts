@@ -67,6 +67,7 @@ const PORTION_WEIGHTS: Record<string, number> = {
   "Aceite de oliva (1 cdita)": 5,
   "Aceite de oliva (1 cda)": 15,
   "Chía": 10,
+  "Mantequilla de almendra Rossmann": 15,
   "Mostaza": 5,
   "Spray de aceite": 1,
   // Extras
@@ -98,3 +99,74 @@ export const TRACKER_FOODS: TrackerFood[] = FOODS
       sugarPer100g: r(f.sugar * scale),
     };
   });
+
+// Pre-built meals: common combinations as one-click log items.
+// Each maps to existing TRACKER_FOODS by ID + weight.
+export interface PreBuiltMeal {
+  id: string;
+  name: string;
+  items: Array<{ foodId: string; weight_g: number }>;
+}
+
+export const PRE_BUILT_MEALS: PreBuiltMeal[] = [
+  {
+    id: "batido-mocha",
+    name: "Batido mocha proteico",
+    items: [
+      { foodId: "prote-na-rossmann", weight_g: 30 },
+      { foodId: "leche-de-soya-sin-az-car", weight_g: 200 },
+      { foodId: "cacao-en-polvo-sin-az-car", weight_g: 5 },
+    ],
+  },
+  {
+    id: "tostada-proteina",
+    name: "Tostada de proteina",
+    items: [
+      { foodId: "pan-integral-fibra", weight_g: 70 },
+      { foodId: "huevo", weight_g: 120 },
+      { foodId: "spray-de-aceite", weight_g: 1 },
+    ],
+  },
+  {
+    id: "bowl-quinoa-pollo",
+    name: "Bowl de quinoa y pollo",
+    items: [
+      { foodId: "pechuga-de-pollo", weight_g: 150 },
+      { foodId: "quinoa-cocida", weight_g: 120 },
+      { foodId: "pimentones", weight_g: 150 },
+      { foodId: "aceite-de-oliva-1-cdita-", weight_g: 5 },
+      { foodId: "tomate-cherry", weight_g: 100 },
+      { foodId: "espinaca-baby", weight_g: 30 },
+    ],
+  },
+  {
+    id: "wrap-proteina",
+    name: "Wrap de proteina",
+    items: [
+      { foodId: "wrap-de-prote-na", weight_g: 65 },
+      { foodId: "pechuga-de-pollo", weight_g: 120 },
+      { foodId: "espinaca-baby", weight_g: 30 },
+      { foodId: "pimentones", weight_g: 50 },
+    ],
+  },
+  {
+    id: "ensalada-atun",
+    name: "Ensalada de atun",
+    items: [
+      { foodId: "at-n-en-agua-lata-", weight_g: 120 },
+      { foodId: "lechuga-mix", weight_g: 100 },
+      { foodId: "tomate-cherry", weight_g: 100 },
+      { foodId: "pepino", weight_g: 50 },
+      { foodId: "ma-z-en-lata", weight_g: 50 },
+      { foodId: "quinoa-cocida", weight_g: 80 },
+      { foodId: "aceite-de-oliva-1-cdita-", weight_g: 5 },
+    ],
+  },
+  {
+    id: "yogur-stracciatella",
+    name: "Yogur stracciatella proteico",
+    items: [
+      { foodId: "yogur-stracciatella-0-proteico", weight_g: 125 },
+    ],
+  },
+];

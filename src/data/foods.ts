@@ -483,6 +483,13 @@ export const FOODS: Food[] = [
     tags: ["Alta fibra", "Omega-3"],
   },
   {
+    name: "Mantequilla de almendra Rossmann",
+    group: "Grasa",
+    portion: "15g (1 cda)",
+    kcal: 97, protein: 3.5, carbs: 0.8, fat: 8.6, sugar: 0.6, fiber: 1.4,
+    tags: ["Baja cal"],
+  },
+  {
     name: "Mostaza",
     group: "Grasa",
     portion: "1 cdita (5g)",
