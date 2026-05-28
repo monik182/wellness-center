@@ -66,6 +66,23 @@ export default {
     const path = url.pathname;
     const method = request.method;
 
+    // /api/meals/history?before=YYYY-MM-DD&limit=N
+    if (path === "/api/meals/history" && method === "GET") {
+      const before = url.searchParams.get("before") ?? "9999-12-31";
+      const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "14", 10), 60);
+      const rows = await env.DB.prepare(
+        "SELECT id, date, time, items, totals FROM meals WHERE date < ? ORDER BY date DESC, time DESC LIMIT ?"
+      ).bind(before, limit).all();
+      const meals = rows.results.map((r) => ({
+        id: r.id,
+        date: r.date,
+        time: r.time,
+        items: JSON.parse(r.items as string),
+        totals: JSON.parse(r.totals as string),
+      }));
+      return json(meals);
+    }
+
     // /api/meals
     if (path === "/api/meals") {
       if (method === "GET") {

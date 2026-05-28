@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef } from "react";
-import { TRACKER_FOODS } from "../../data/calorieTrackerFoods";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { TRACKER_FOODS, PRE_BUILT_MEALS } from "../../data/calorieTrackerFoods";
 import {
   getTodayCET, getCurrentTimeCET,
   macroScale, sumTotals,
@@ -25,6 +25,8 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+
+  const [showQuickMeals, setShowQuickMeals] = useState(true);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return TRACKER_FOODS;
@@ -177,6 +179,51 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
         />
       ) : (
         <>
+          {/* Quick meals */}
+          {selectorItems.length === 0 && !query.trim() && (
+            <div style={{ marginBottom: 14 }}>
+              <button
+                onClick={() => setShowQuickMeals(!showQuickMeals)}
+                style={{
+                  background: "none", border: "none", fontSize: 11, fontWeight: 600,
+                  color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.04em",
+                  cursor: "pointer", padding: 0, marginBottom: 8, display: "block",
+                }}
+              >
+                Comidas rapidas {showQuickMeals ? "-" : "+"}
+              </button>
+              {showQuickMeals && PRE_BUILT_MEALS.map((meal) => {
+                const totalKcal = meal.items.reduce((sum, item) => {
+                  const food = foodById.get(item.foodId);
+                  return sum + (food ? macroScale(food, item.weight_g).kcal : 0);
+                }, 0);
+                const totalProtein = meal.items.reduce((sum, item) => {
+                  const food = foodById.get(item.foodId);
+                  return sum + (food ? macroScale(food, item.weight_g).protein : 0);
+                }, 0);
+                return (
+                  <button
+                    key={meal.id}
+                    onClick={() => {
+                      setSelectorItems(meal.items.map((i) => ({ foodId: i.foodId, weight_g: i.weight_g })));
+                    }}
+                    style={{
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
+                      width: "100%", padding: "10px 12px", background: "var(--cream)",
+                      border: "1px solid var(--border)", borderRadius: 10,
+                      cursor: "pointer", textAlign: "left", marginBottom: 6,
+                    }}
+                  >
+                    <p style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>{meal.name}</p>
+                    <p style={{ fontSize: 11, color: "var(--muted)", flexShrink: 0, marginLeft: 8 }}>
+                      {Math.round(totalKcal)} kcal · {Math.round(totalProtein)}g P
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {/* Search */}
           <input
             type="search"
@@ -355,8 +402,24 @@ function ChatView({
 }) {
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [history.length, loading]);
+
+  useEffect(() => {
+    if (recording) {
+      timerRef.current = setInterval(() => setRecordingSeconds((s) => s + 1), 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [recording]);
 
   async function toggleRecording() {
     if (recording) {
@@ -368,6 +431,7 @@ function ChatView({
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mr = new MediaRecorder(stream);
       chunksRef.current = [];
+      setRecordingSeconds(0);
       mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       mr.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
@@ -416,7 +480,32 @@ function ChatView({
             ...
           </div>
         )}
+        <div ref={chatEndRef} />
       </div>
+
+      {(recording || transcribing) && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 8,
+          padding: "6px 10px", marginBottom: 8,
+          background: recording ? "#fde8e8" : "var(--beige)",
+          borderRadius: 8, fontSize: 12,
+        }}>
+          {recording && (
+            <>
+              <span style={{
+                width: 8, height: 8, borderRadius: "50%", background: "#e53e3e",
+                animation: "pulse 1s ease-in-out infinite",
+              }} />
+              <span style={{ color: "#c62828" }}>
+                Grabando... {recordingSeconds}s
+              </span>
+            </>
+          )}
+          {transcribing && (
+            <span style={{ color: "var(--muted)" }}>Transcribiendo...</span>
+          )}
+        </div>
+      )}
 
       <div style={{ display: "flex", gap: 8 }}>
         <input

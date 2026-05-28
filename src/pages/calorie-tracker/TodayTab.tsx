@@ -32,7 +32,7 @@ function MacroBar({
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
         <span style={{ fontWeight: 600, color: "var(--ink)" }}>{label}</span>
         <span style={{ color: "var(--muted)" }}>
-          {Math.round(consumed * 10) / 10}{unit} / {target}{unit}
+          {Math.round(consumed * 10) / 10}{unit} / {target}{unit} ({Math.round(pct)}%)
         </span>
       </div>
       <div style={{ height: 5, borderRadius: 3, background: "var(--border)", overflow: "hidden" }}>
@@ -297,14 +297,23 @@ function EditMealModal({
 }
 
 // ─── Main TodayTab ────────────────────────────────────────────────
-export default function TodayTab({ onLogMore }: { onLogMore: () => void }) {
+interface TodayTabProps {
+  onLogMore: () => void;
+  cachedSuggestions: Suggestion[] | null;
+  onSuggestionsLoaded: (s: Suggestion[]) => void;
+  onSuggestionsInvalidated: () => void;
+}
+
+export default function TodayTab({
+  onLogMore, cachedSuggestions, onSuggestionsLoaded, onSuggestionsInvalidated,
+}: TodayTabProps) {
   const [meals, setMeals] = useState<LoggedMeal[]>([]);
   const [gymDay, setGymDay] = useState(false);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingMeal, setEditingMeal] = useState<LoggedMeal | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>(cachedSuggestions ?? []);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
 
   const today = getTodayCET();
@@ -331,19 +340,30 @@ export default function TodayTab({ onLogMore }: { onLogMore: () => void }) {
         foods: TRACKER_FOODS,
       });
       setSuggestions(result);
+      onSuggestionsLoaded(result);
     } finally {
       setSuggestionsLoading(false);
     }
   }
 
   useEffect(() => {
+    const hasCachedSuggestions = cachedSuggestions !== null;
     Promise.all([api.getMeals(today), api.getGymDay()])
       .then(([m, g]) => {
         setMeals(m);
-        setGymDay(g.active);
-        fetchSuggestions(m, g.active);
+        // Auto-reset gym day if stored date differs from today (midnight reset)
+        const isGym = g.active && g.date === today;
+        setGymDay(isGym);
+        if (g.active && g.date !== today) {
+          api.setGymDay(false, today);
+        }
+        // Only fetch suggestions if cache is empty (invalidated or first load)
+        if (!hasCachedSuggestions) {
+          fetchSuggestions(m, isGym);
+        }
       })
       .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [today]);
 
   const todayMeals = [...meals].sort((a, b) => b.time.localeCompare(a.time));
@@ -353,6 +373,7 @@ export default function TodayTab({ onLogMore }: { onLogMore: () => void }) {
   async function handleGymToggle(checked: boolean) {
     setGymDay(checked);
     await api.setGymDay(checked, today);
+    onSuggestionsInvalidated();
     fetchSuggestions(meals, checked);
   }
 
@@ -362,6 +383,31 @@ export default function TodayTab({ onLogMore }: { onLogMore: () => void }) {
     setMeals(newMeals);
     setConfirmDeleteId(null);
     setExpandedId(null);
+    onSuggestionsInvalidated();
+    fetchSuggestions(newMeals, gymDay);
+  }
+
+  async function handleQuickLog(s: Suggestion) {
+    const food = TRACKER_FOODS.find((f) => f.id === s.foodId);
+    if (!food) return;
+    const scaled = macroScale(food, s.weight_g);
+    const item: LoggedFoodItem = {
+      foodId: s.foodId,
+      name: s.name,
+      weight_g: s.weight_g,
+      ...scaled,
+    };
+    const meal: LoggedMeal = {
+      id: crypto.randomUUID(),
+      date: today,
+      time: getCurrentTimeCET(),
+      items: [item],
+      totals: { ...scaled },
+    };
+    await api.addMeal(meal);
+    const newMeals = [...meals, meal];
+    setMeals(newMeals);
+    onSuggestionsInvalidated();
     fetchSuggestions(newMeals, gymDay);
   }
 
@@ -376,6 +422,7 @@ export default function TodayTab({ onLogMore }: { onLogMore: () => void }) {
     }
     setMeals(newMeals);
     setEditingMeal(null);
+    onSuggestionsInvalidated();
     fetchSuggestions(newMeals, gymDay);
   }
 
@@ -456,7 +503,7 @@ export default function TodayTab({ onLogMore }: { onLogMore: () => void }) {
                   display: "flex", justifyContent: "space-between", alignItems: "center",
                   padding: "8px 0", borderTop: "1px solid var(--border)",
                 }}>
-                  <div>
+                  <div style={{ flex: 1 }}>
                     <p style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>
                       {s.name} <span style={{ fontWeight: 400, color: "var(--muted)" }}>({s.weight_g}g)</span>
                     </p>
@@ -466,6 +513,18 @@ export default function TodayTab({ onLogMore }: { onLogMore: () => void }) {
                     <p style={{ fontSize: 11, color: "var(--muted)", flexShrink: 0, marginLeft: 8 }}>
                       {Math.round(macros.kcal)} kcal · {Math.round(macros.protein * 10) / 10}g P
                     </p>
+                  )}
+                  {food && (
+                    <button
+                      onClick={() => handleQuickLog(s)}
+                      style={{
+                        background: "var(--beige)", border: "1px solid var(--border)",
+                        borderRadius: 6, padding: "4px 8px", marginLeft: 8,
+                        fontSize: 12, cursor: "pointer", color: "var(--ink)", flexShrink: 0,
+                      }}
+                    >
+                      +
+                    </button>
                   )}
                 </div>
               );

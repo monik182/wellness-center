@@ -1,102 +1,164 @@
 import { useState, useEffect } from "react";
-import { getTodayCET, type LoggedMeal, type MacroTotals } from "./types";
+import { getTodayCET, sumMealTotals, type LoggedMeal, type MacroTotals } from "./types";
 import { api } from "../../api/client";
 
+const PAGE_SIZE = 14;
+
 export default function HistoryTab() {
-  const [meals, setMeals] = useState<LoggedMeal[]>([]);
+  const [allMeals, setAllMeals] = useState<LoggedMeal[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(getTodayCET());
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [sortAsc, setSortAsc] = useState(false);
+
+  const today = getTodayCET();
 
   useEffect(() => {
-    api.getMeals(selectedDate).then(setMeals).finally(() => setLoading(false));
-  }, [selectedDate]);
+    api.getMealHistory(today, PAGE_SIZE)
+      .then((meals) => {
+        setAllMeals(meals);
+        setHasMore(meals.length >= PAGE_SIZE);
+      })
+      .finally(() => setLoading(false));
+  }, [today]);
 
-  const mealsForDate = [...meals].sort((a, b) => b.time.localeCompare(a.time));
+  async function loadMore() {
+    if (loadingMore || !hasMore) return;
+    const dates = allMeals.map((m) => m.date);
+    const oldestDate = dates.length > 0 ? dates[dates.length - 1] : today;
+    setLoadingMore(true);
+    try {
+      const more = await api.getMealHistory(oldestDate, PAGE_SIZE);
+      // Deduplicate by id
+      const existingIds = new Set(allMeals.map((m) => m.id));
+      const newMeals = more.filter((m) => !existingIds.has(m.id));
+      setAllMeals([...allMeals, ...newMeals]);
+      setHasMore(more.length >= PAGE_SIZE);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
-  const dayTotal: MacroTotals = mealsForDate.reduce(
-    (acc, meal) => ({
-      kcal:    acc.kcal    + meal.totals.kcal,
-      protein: acc.protein + meal.totals.protein,
-      carbs:   acc.carbs   + meal.totals.carbs,
-      fat:     acc.fat     + meal.totals.fat,
-      fiber:   acc.fiber   + meal.totals.fiber,
-      sugar:   acc.sugar   + meal.totals.sugar,
-    }),
-    { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 }
+  // Group meals by date
+  const grouped = new Map<string, LoggedMeal[]>();
+  for (const meal of allMeals) {
+    const list = grouped.get(meal.date) ?? [];
+    list.push(meal);
+    grouped.set(meal.date, list);
+  }
+
+  // Sort days
+  const sortedDays = Array.from(grouped.keys()).sort((a, b) =>
+    sortAsc ? a.localeCompare(b) : b.localeCompare(a)
   );
 
-  const [y, mo, d] = selectedDate.split("-").map(Number);
-  const dateDisplay = new Date(y, mo - 1, d).toLocaleDateString("es-ES", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  function formatDate(dateStr: string): string {
+    const [y, mo, d] = dateStr.split("-").map(Number);
+    return new Date(y, mo - 1, d).toLocaleDateString("es-ES", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    });
+  }
 
   return (
     <div>
-      <input
-        type="date"
-        value={selectedDate}
-        max={getTodayCET()}
-        onChange={(e) => {
-          setSelectedDate(e.target.value);
-          setLoading(true);
-          setExpandedId(null);
-        }}
-        style={{
-          width: "100%", padding: "10px 12px", borderRadius: 10,
-          border: "1px solid var(--border)", background: "var(--cream)",
-          fontSize: 13, fontFamily: "inherit", marginBottom: 14,
-          outline: "none",
-        }}
-      />
-
-      <p style={{ fontSize: 12, color: "var(--muted)", textTransform: "capitalize", marginBottom: 12 }}>
-        {dateDisplay}
-      </p>
+      {/* Sort toggle */}
+      <div style={{
+        display: "flex", justifyContent: "flex-end", marginBottom: 12,
+      }}>
+        <button
+          onClick={() => setSortAsc(!sortAsc)}
+          style={{
+            background: "none", border: "1px solid var(--border)", borderRadius: 6,
+            padding: "4px 10px", fontSize: 11, color: "var(--muted)", cursor: "pointer",
+          }}
+        >
+          {sortAsc ? "Mas antiguo primero" : "Mas reciente primero"}
+        </button>
+      </div>
 
       {loading ? (
         <p style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", padding: "24px 0" }}>
           Cargando...
         </p>
-      ) : mealsForDate.length === 0 ? (
+      ) : sortedDays.length === 0 ? (
         <p style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", padding: "24px 0" }}>
-          Sin registros para esta fecha.
+          Sin registros anteriores.
         </p>
       ) : (
-        <>
-          <div style={{
-            background: "var(--cream)", borderRadius: 10, border: "1px solid var(--border)",
-            padding: 12, marginBottom: 12,
-            display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8,
-          }}>
-            {[
-              { label: "Kcal",     val: Math.round(dayTotal.kcal) },
-              { label: "Proteina", val: `${Math.round(dayTotal.protein * 10) / 10}g` },
-              { label: "Carbos",   val: `${Math.round(dayTotal.carbs * 10) / 10}g` },
-              { label: "Grasa",    val: `${Math.round(dayTotal.fat * 10) / 10}g` },
-              { label: "Fibra",    val: `${Math.round(dayTotal.fiber * 10) / 10}g` },
-              { label: "Azucar",   val: `${Math.round(dayTotal.sugar * 10) / 10}g` },
-            ].map(({ label, val }) => (
-              <div key={label} style={{ textAlign: "center" }}>
-                <p style={{ fontSize: 10, color: "var(--muted)", marginBottom: 2 }}>{label}</p>
-                <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{val}</p>
-              </div>
-            ))}
-          </div>
+        sortedDays.map((date) => {
+          const dayMeals = grouped.get(date)!.sort((a, b) => b.time.localeCompare(a.time));
+          const dayTotal = sumMealTotals(dayMeals);
 
-          {mealsForDate.map((meal) => (
-            <HistoryMealCard
-              key={meal.id}
-              meal={meal}
-              expanded={expandedId === meal.id}
-              onToggle={() => setExpandedId(expandedId === meal.id ? null : meal.id)}
-            />
-          ))}
-        </>
+          return (
+            <div key={date} style={{ marginBottom: 20 }}>
+              <div style={{
+                display: "flex", justifyContent: "space-between", alignItems: "baseline",
+                marginBottom: 8,
+              }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", textTransform: "capitalize" }}>
+                  {formatDate(date)}
+                </p>
+                <p style={{ fontSize: 11, color: "var(--muted)" }}>
+                  {Math.round(dayTotal.kcal)} kcal · {Math.round(dayTotal.protein)}g P
+                </p>
+              </div>
+
+              <DayTotalsGrid totals={dayTotal} />
+
+              {dayMeals.map((meal) => (
+                <HistoryMealCard
+                  key={meal.id}
+                  meal={meal}
+                  expanded={expandedId === meal.id}
+                  onToggle={() => setExpandedId(expandedId === meal.id ? null : meal.id)}
+                />
+              ))}
+            </div>
+          );
+        })
       )}
+
+      {hasMore && !loading && (
+        <button
+          onClick={loadMore}
+          disabled={loadingMore}
+          style={{
+            width: "100%", padding: "11px 0", marginTop: 4,
+            borderRadius: 10, border: "1.5px dashed var(--border)",
+            background: "transparent", color: "var(--muted)",
+            fontSize: 13, cursor: loadingMore ? "default" : "pointer",
+          }}
+        >
+          {loadingMore ? "Cargando..." : "Cargar mas"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function DayTotalsGrid({ totals }: { totals: MacroTotals }) {
+  return (
+    <div style={{
+      background: "var(--cream)", borderRadius: 10, border: "1px solid var(--border)",
+      padding: 10, marginBottom: 8,
+      display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6,
+    }}>
+      {[
+        { label: "Kcal",     val: Math.round(totals.kcal) },
+        { label: "Proteina", val: `${Math.round(totals.protein * 10) / 10}g` },
+        { label: "Carbos",   val: `${Math.round(totals.carbs * 10) / 10}g` },
+        { label: "Grasa",    val: `${Math.round(totals.fat * 10) / 10}g` },
+        { label: "Fibra",    val: `${Math.round(totals.fiber * 10) / 10}g` },
+        { label: "Azucar",   val: `${Math.round(totals.sugar * 10) / 10}g` },
+      ].map(({ label, val }) => (
+        <div key={label} style={{ textAlign: "center" }}>
+          <p style={{ fontSize: 10, color: "var(--muted)", marginBottom: 2 }}>{label}</p>
+          <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ink)" }}>{val}</p>
+        </div>
+      ))}
     </div>
   );
 }
