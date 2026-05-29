@@ -6,6 +6,8 @@ export interface HardcodedFood {
   carbs: number;
   fat: number;
   fiber: number;
+  default_weight_g: number;
+  portion: string;
 }
 
 export const HARDCODED_FOODS: HardcodedFood[] = [
@@ -17,6 +19,8 @@ export const HARDCODED_FOODS: HardcodedFood[] = [
     carbs: 0,
     fat: 3.6,
     fiber: 0,
+    default_weight_g: 150,
+    portion: "1 pechuga mediana (~150g)",
   },
   {
     name: "Huevo",
@@ -26,6 +30,8 @@ export const HARDCODED_FOODS: HardcodedFood[] = [
     carbs: 1.1,
     fat: 11,
     fiber: 0,
+    default_weight_g: 60,
+    portion: "1 huevo grande (~60g)",
   },
   {
     name: "Pan integral",
@@ -35,6 +41,8 @@ export const HARDCODED_FOODS: HardcodedFood[] = [
     carbs: 41,
     fat: 3.4,
     fiber: 7,
+    default_weight_g: 40,
+    portion: "1 rebanada (~40g)",
   },
   {
     name: "Quinoa cocida",
@@ -44,6 +52,8 @@ export const HARDCODED_FOODS: HardcodedFood[] = [
     carbs: 23.7,
     fat: 1.9,
     fiber: 2.8,
+    default_weight_g: 185,
+    portion: "1 ración cocida (~185g)",
   },
   {
     name: "Pimiento rojo",
@@ -53,6 +63,8 @@ export const HARDCODED_FOODS: HardcodedFood[] = [
     carbs: 7,
     fat: 0.3,
     fiber: 1.7,
+    default_weight_g: 120,
+    portion: "1 pimiento mediano (~120g)",
   },
   {
     name: "Cereza",
@@ -62,6 +74,8 @@ export const HARDCODED_FOODS: HardcodedFood[] = [
     carbs: 16,
     fat: 0.2,
     fiber: 2.1,
+    default_weight_g: 100,
+    portion: "1 puñado (~100g)",
   },
   {
     name: "Uva verde",
@@ -71,6 +85,8 @@ export const HARDCODED_FOODS: HardcodedFood[] = [
     carbs: 18,
     fat: 0.4,
     fiber: 0.9,
+    default_weight_g: 100,
+    portion: "1 racimo pequeño (~100g)",
   },
   {
     name: "Yogur natural 0%",
@@ -80,6 +96,8 @@ export const HARDCODED_FOODS: HardcodedFood[] = [
     carbs: 3.3,
     fat: 0.5,
     fiber: 0,
+    default_weight_g: 125,
+    portion: "1 yogur (~125g)",
   },
   {
     name: "Queso Manchego",
@@ -89,6 +107,8 @@ export const HARDCODED_FOODS: HardcodedFood[] = [
     carbs: 1.3,
     fat: 35,
     fiber: 0,
+    default_weight_g: 30,
+    portion: "1 loncha (~30g)",
   },
   {
     name: "Plátano",
@@ -98,6 +118,8 @@ export const HARDCODED_FOODS: HardcodedFood[] = [
     carbs: 23,
     fat: 0.3,
     fiber: 2.6,
+    default_weight_g: 120,
+    portion: "1 plátano mediano (~120g)",
   },
   {
     name: "Atún en lata",
@@ -107,6 +129,8 @@ export const HARDCODED_FOODS: HardcodedFood[] = [
     carbs: 0,
     fat: 1,
     fiber: 0,
+    default_weight_g: 80,
+    portion: "1 lata escurrida (~80g)",
   },
   {
     name: "Espinaca",
@@ -116,6 +140,8 @@ export const HARDCODED_FOODS: HardcodedFood[] = [
     carbs: 3.6,
     fat: 0.4,
     fiber: 2.2,
+    default_weight_g: 60,
+    portion: "1 puñado crudo (~60g)",
   },
   {
     name: "Tomate",
@@ -125,6 +151,8 @@ export const HARDCODED_FOODS: HardcodedFood[] = [
     carbs: 3.9,
     fat: 0.2,
     fiber: 1.2,
+    default_weight_g: 120,
+    portion: "1 tomate mediano (~120g)",
   },
   {
     name: "Pepino",
@@ -134,6 +162,8 @@ export const HARDCODED_FOODS: HardcodedFood[] = [
     carbs: 3.6,
     fat: 0.1,
     fiber: 0.5,
+    default_weight_g: 100,
+    portion: "medio pepino (~100g)",
   },
   {
     name: "Maíz en lata",
@@ -143,6 +173,8 @@ export const HARDCODED_FOODS: HardcodedFood[] = [
     carbs: 17,
     fat: 0.6,
     fiber: 2,
+    default_weight_g: 80,
+    portion: "1 ración (~80g)",
   },
   {
     name: "Avena",
@@ -152,6 +184,8 @@ export const HARDCODED_FOODS: HardcodedFood[] = [
     carbs: 68,
     fat: 7,
     fiber: 10,
+    default_weight_g: 40,
+    portion: "1 ración seca (~40g)",
   },
   {
     name: "Brócoli",
@@ -161,6 +195,8 @@ export const HARDCODED_FOODS: HardcodedFood[] = [
     carbs: 7,
     fat: 0.4,
     fiber: 2.6,
+    default_weight_g: 150,
+    portion: "1 ración al vapor (~150g)",
   },
   {
     name: "Aceite de oliva",
@@ -170,6 +206,8 @@ export const HARDCODED_FOODS: HardcodedFood[] = [
     carbs: 0,
     fat: 100,
     fiber: 0,
+    default_weight_g: 10,
+    portion: "1 cucharada (~10g)",
   },
   {
     name: "Leche de soja",
@@ -179,6 +217,8 @@ export const HARDCODED_FOODS: HardcodedFood[] = [
     carbs: 1.9,
     fat: 1.9,
     fiber: 0.5,
+    default_weight_g: 240,
+    portion: "1 vaso (~240ml)",
   },
   {
     name: "Pan de sourdough",
@@ -188,5 +228,7 @@ export const HARDCODED_FOODS: HardcodedFood[] = [
     carbs: 47,
     fat: 2,
     fiber: 3,
+    default_weight_g: 50,
+    portion: "1 rebanada gruesa (~50g)",
   },
 ];

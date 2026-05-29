@@ -7,22 +7,30 @@ interface HaikuMacros {
   fat_per_100g?: number;
   fiber_per_100g?: number;
   sugar_per_100g?: number;
+  default_weight_g?: number;
+  portion?: string;
 }
 
-const FALLBACK_MACROS: MacroResult = {
+const FALLBACK_MACROS: MacroResult & { default_weight_g: number; portion: string } = {
   kcal: 100,
   protein: 5,
   carbs: 15,
   fat: 3,
   fiber: 1,
+  default_weight_g: 100,
+  portion: "1 ración (~100g)",
 };
 
-export async function estimateWithHaiku(name: string, apiKey: string): Promise<MacroResult> {
+export async function estimateWithHaiku(
+  name: string,
+  apiKey: string
+): Promise<MacroResult & { default_weight_g: number; portion: string }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10000);
 
   try {
     const prompt = `Estimate the per-100g nutritional macros for the food: "${name}".
+Also estimate a typical single-portion weight in grams and a short Spanish description.
 Return ONLY a valid JSON object with these keys (all numeric values in grams/kcal):
 {
   "kcal_per_100g": <number>,
@@ -30,7 +38,9 @@ Return ONLY a valid JSON object with these keys (all numeric values in grams/kca
   "carbs_per_100g": <number>,
   "fat_per_100g": <number>,
   "fiber_per_100g": <number or null>,
-  "sugar_per_100g": <number or null>
+  "sugar_per_100g": <number or null>,
+  "default_weight_g": <number, weight of one standard portion in grams>,
+  "portion": "<string, e.g. '1 unidad mediana (~150g)'>"
 }
 This is a best-guess estimate. Use nutritional knowledge to provide reasonable values.`;
 
@@ -44,7 +54,7 @@ This is a best-guess estimate. Use nutritional knowledge to provide reasonable v
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 256,
+        max_tokens: 320,
         system: "You are a nutritional data assistant. Return ONLY valid JSON, no other text.",
         messages: [{ role: "user", content: prompt }],
       }),
@@ -80,6 +90,8 @@ This is a best-guess estimate. Use nutritional knowledge to provide reasonable v
       carbs: parsed.carbs_per_100g ?? 15,
       fat: parsed.fat_per_100g ?? 3,
       fiber: parsed.fiber_per_100g ?? 1,
+      default_weight_g: typeof parsed.default_weight_g === "number" ? parsed.default_weight_g : 100,
+      portion: typeof parsed.portion === "string" ? parsed.portion : "1 ración (~100g)",
     };
   } catch (e) {
     console.error("Haiku estimation failed:", e);

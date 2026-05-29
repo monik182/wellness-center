@@ -26,6 +26,8 @@ export interface ResolveResponse {
     fat: number;
     fiber: number;
   };
+  default_weight_g?: number;
+  portion?: string;
 }
 
 function levenshtein(a: string, b: string): number {
@@ -65,11 +67,12 @@ async function writeToCache(
   name: string,
   source: string,
   macros: MacroResult,
-  db: D1Database
+  db: D1Database,
+  portionInfo?: { default_weight_g?: number; portion?: string }
 ): Promise<void> {
   await db
     .prepare(
-      "INSERT OR REPLACE INTO foods_cache (key, name, source, kcal, protein, carbs, fat, fiber, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      "INSERT OR REPLACE INTO foods_cache (key, name, source, kcal, protein, carbs, fat, fiber, fetched_at, default_weight_g, portion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     )
     .bind(
       key,
@@ -80,7 +83,9 @@ async function writeToCache(
       macros.carbs,
       macros.fat,
       macros.fiber,
-      new Date().toISOString()
+      new Date().toISOString(),
+      portionInfo?.default_weight_g ?? null,
+      portionInfo?.portion ?? null
     )
     .run();
 }
@@ -117,12 +122,14 @@ export async function resolveNutrition(
       source: "hardcoded",
       per_100g,
       macros: scaleToWeight(per_100g, req.weight_g),
+      default_weight_g: hardcoded.default_weight_g,
+      portion: hardcoded.portion,
     };
   }
 
   // Step 2: D1 cache check
   const cacheRow = await env.DB.prepare(
-    "SELECT name, source, kcal, protein, carbs, fat, fiber FROM foods_cache WHERE key = ?"
+    "SELECT name, source, kcal, protein, carbs, fat, fiber, default_weight_g, portion FROM foods_cache WHERE key = ?"
   ).bind(normalized).first<{
     name: string;
     source: string;
@@ -131,6 +138,8 @@ export async function resolveNutrition(
     carbs: number;
     fat: number;
     fiber: number;
+    default_weight_g: number | null;
+    portion: string | null;
   }>();
 
   if (cacheRow) {
@@ -147,25 +156,33 @@ export async function resolveNutrition(
       source: (cacheRow.source as "off" | "haiku") || "haiku",
       per_100g,
       macros: scaleToWeight(per_100g, req.weight_g),
+      default_weight_g: cacheRow.default_weight_g ?? undefined,
+      portion: cacheRow.portion ?? undefined,
     };
   }
 
   // Step 3: Open Food Facts
   const offResult = await fetchOpenFoodFacts(req.name);
   if (offResult) {
-    await writeToCache(normalized, offResult.displayName, "off", offResult.result, env.DB);
+    await writeToCache(normalized, offResult.displayName, "off", offResult.result, env.DB, {
+      default_weight_g: offResult.default_weight_g,
+    });
     return {
       name: offResult.displayName,
       weight_g: req.weight_g,
       source: "off",
       per_100g: offResult.result,
       macros: scaleToWeight(offResult.result, req.weight_g),
+      default_weight_g: offResult.default_weight_g,
     };
   }
 
   // Step 4: Haiku (guaranteed to return something)
   const haikuResult = await estimateWithHaiku(req.name, env.ANTHROPIC_API_KEY);
-  await writeToCache(normalized, req.name, "haiku", haikuResult, env.DB);
+  await writeToCache(normalized, req.name, "haiku", haikuResult, env.DB, {
+    default_weight_g: haikuResult.default_weight_g,
+    portion: haikuResult.portion,
+  });
 
   return {
     name: req.name,
@@ -173,5 +190,7 @@ export async function resolveNutrition(
     source: "haiku",
     per_100g: haikuResult,
     macros: scaleToWeight(haikuResult, req.weight_g),
+    default_weight_g: haikuResult.default_weight_g,
+    portion: haikuResult.portion,
   };
 }

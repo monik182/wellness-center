@@ -29,7 +29,7 @@ function computeSimilarity(query: string, productName: string): number {
 
 export async function fetchOpenFoodFacts(
   name: string
-): Promise<{ result: MacroResult; displayName: string } | null> {
+): Promise<{ result: MacroResult; displayName: string; default_weight_g?: number } | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 5000);
 
@@ -52,6 +52,7 @@ export async function fetchOpenFoodFacts(
         nutriments?: Record<string, number | undefined>;
         countries_tags?: string;
         code?: string;
+        serving_size?: string;
       }>;
     };
 
@@ -90,6 +91,14 @@ export async function fetchOpenFoodFacts(
     if (!bestProduct || !bestProduct.product_name) return null;
 
     const nutriments = bestProduct.nutriments!;
+
+    let default_weight_g: number | undefined;
+    const servingRaw = bestProduct.serving_size;
+    if (servingRaw) {
+      const match = servingRaw.match(/(\d+(?:\.\d+)?)/);
+      if (match) default_weight_g = parseFloat(match[1]);
+    }
+
     return {
       displayName: bestProduct.product_name,
       result: {
@@ -99,6 +108,7 @@ export async function fetchOpenFoodFacts(
         fat: nutriments["fat_100g"]!,
         fiber: nutriments["fiber_100g"] ?? 0,
       },
+      default_weight_g,
     };
   } catch {
     return null;

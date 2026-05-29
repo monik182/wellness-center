@@ -18,6 +18,15 @@ export interface SelectorItem {
   weight_g: number;
 }
 
+interface PendingChatItem {
+  foodId: string;
+  name: string;
+  weight_g: number;
+  isMatched: boolean;
+  default_weight_g?: number;
+  portion?: string;
+}
+
 interface Props {
   selectorItems: SelectorItem[];
   setSelectorItems: (items: SelectorItem[]) => void;
@@ -43,6 +52,7 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
   const [mealTime, setMealTime] = useState(getCurrentTimeCET());
   const [resolvedFoods, setResolvedFoods] = useState<Map<string, TrackerFood>>(new Map());
   const [resolving, setResolving] = useState(false);
+  const [pendingChatItems, setPendingChatItems] = useState<PendingChatItem[] | null>(null);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return TRACKER_FOODS;
@@ -144,46 +154,91 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
     setChatHistory(newHistory);
     setChatInput("");
     setChatLoading(true);
+
+    const uncertaintyKeywords = ["no sé", "no se", "no estoy segura", "no estoy seguro", "no sé cuánto", "no se cuanto"];
+    const userIsUncertain = uncertaintyKeywords.some((kw) => chatInput.toLowerCase().includes(kw));
+
     try {
       const result = await api.chat(
         newHistory,
         TRACKER_FOODS.map((f) => ({ id: f.id, name: f.name, defaultWeight_g: f.defaultWeight_g }))
       );
       if (result.type === "items") {
-        const loggedItems: LoggedFoodItem[] = await Promise.all(
-          result.items.map(async (add) => {
-            const food = TRACKER_FOODS.find((f) => f.id === add.foodId);
+        const pending: PendingChatItem[] = await Promise.all(
+          result.items.map(async (item) => {
+            const food = TRACKER_FOODS.find((f) => f.id === item.foodId);
             if (food) {
-              return { foodId: add.foodId, name: add.name, weight_g: add.weight_g, ...macroScale(food, add.weight_g) };
+              return {
+                foodId: item.foodId,
+                name: item.name,
+                weight_g: userIsUncertain ? food.defaultWeight_g : item.weight_g,
+                isMatched: true,
+                default_weight_g: food.defaultWeight_g,
+                portion: undefined,
+              };
             }
-            const resolved = await api.resolveNutrition(add.name, add.weight_g);
+            const resolved = await api.resolveNutrition(item.name, item.weight_g);
             return {
-              foodId: `resolved-${add.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+              foodId: item.foodId,
               name: resolved.name,
-              weight_g: add.weight_g,
-              ...resolved.macros,
-              sugar: 0,
+              weight_g: userIsUncertain ? (resolved.default_weight_g ?? item.weight_g) : item.weight_g,
+              isMatched: false,
+              default_weight_g: resolved.default_weight_g,
+              portion: resolved.portion,
             };
           })
         );
-        const totals = sumTotals(loggedItems);
-        const meal: LoggedMeal = {
-          id: crypto.randomUUID(),
-          date: mealDate,
-          time: mealTime,
-          items: loggedItems,
-          totals,
-        };
-        await api.addMeal(meal);
-        onLogged();
-        setSelectorItems([]);
-        const names = result.items.map((i) => `${i.name} (${i.weight_g}g)`).join(", ");
-        setChatHistory([...newHistory, { role: "assistant", content: `Registrado: ${names}` }]);
+        setPendingChatItems(pending);
+        setChatHistory([...newHistory, { role: "assistant", content: "Confirma o ajusta los pesos antes de registrar:" }]);
       } else {
         setChatHistory([...newHistory, { role: "assistant", content: result.text }]);
       }
     } finally {
       setChatLoading(false);
+    }
+  }
+
+  async function handleChatConfirm() {
+    if (!pendingChatItems || pendingChatItems.length === 0 || saving) return;
+    setSaving(true);
+    try {
+      const loggedItems: LoggedFoodItem[] = await Promise.all(
+        pendingChatItems.map(async (item) => {
+          const food = TRACKER_FOODS.find((f) => f.id === item.foodId);
+          if (food) {
+            return {
+              foodId: item.foodId,
+              name: item.name,
+              weight_g: item.weight_g,
+              ...macroScale(food, item.weight_g),
+            };
+          }
+          const resolved = await api.resolveNutrition(item.name, item.weight_g);
+          return {
+            foodId: `resolved-${item.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+            name: resolved.name,
+            weight_g: item.weight_g,
+            ...resolved.macros,
+            sugar: 0,
+          };
+        })
+      );
+      const totals = sumTotals(loggedItems);
+      const meal: LoggedMeal = {
+        id: crypto.randomUUID(),
+        date: mealDate,
+        time: mealTime,
+        items: loggedItems,
+        totals,
+      };
+      await api.addMeal(meal);
+      onLogged();
+      setSelectorItems([]);
+      const names = pendingChatItems.map((i) => `${i.name} (${i.weight_g}g)`).join(", ");
+      setChatHistory((prev) => [...prev, { role: "assistant", content: `Registrado: ${names}` }]);
+      setPendingChatItems(null);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -265,13 +320,75 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
       </Card>
 
       {logView === "chat" ? (
-        <ChatView
-          history={chatHistory}
-          input={chatInput}
-          loading={chatLoading}
-          onSend={handleChatSend}
-          onInputChange={setChatInput}
-        />
+        <>
+          <ChatView
+            history={chatHistory}
+            input={chatInput}
+            loading={chatLoading}
+            onSend={handleChatSend}
+            onInputChange={setChatInput}
+          />
+          {pendingChatItems && (
+            <div className="mt-3">
+              <p className="text-[11px] font-semibold mb-2" style={{ color: "var(--ink-muted)" }}>
+                CONFIRMAR PESOS
+              </p>
+              {pendingChatItems.map((item, idx) => (
+                <Card key={idx} className="mb-2">
+                  <CardContent className="pt-2.5 pb-2.5">
+                    <div className="flex items-start gap-2.5">
+                      <div className="flex-1">
+                        <p className="text-[13px] font-medium" style={{ color: "var(--ink)" }}>
+                          {item.name}
+                        </p>
+                        {item.portion && (
+                          <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-muted)" }}>
+                            {item.portion}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min={1}
+                          max={2000}
+                          value={item.weight_g}
+                          onChange={(e) => {
+                            const w = parseFloat(e.target.value);
+                            if (!isNaN(w) && w > 0) {
+                              setPendingChatItems((prev) =>
+                                prev!.map((p, i) => i === idx ? { ...p, weight_g: w } : p)
+                              );
+                            }
+                          }}
+                          className="w-16 px-1.5 py-1 text-[13px] text-center font-[inherit]"
+                          style={{ border: "1px solid var(--border-color)", background: "var(--beige)" }}
+                        />
+                        <span className="text-[11px]" style={{ color: "var(--ink-muted)" }}>g</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              <div className="flex gap-2 mt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setPendingChatItems(null)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="flex-[2]"
+                  disabled={saving}
+                  onClick={handleChatConfirm}
+                >
+                  {saving ? "Guardando..." : "Confirmar"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       ) : logView === "picture" ? (
         <PictureLogView
           onLogged={onLogged}

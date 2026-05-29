@@ -18,6 +18,7 @@ interface EditedItem {
   detectedName: string;
   weight_g: number;
   foodId: string | null;
+  portion?: string;
 }
 
 export default function PictureLogView({ onLogged, mealDate, mealTime }: Props) {
@@ -132,7 +133,20 @@ export default function PictureLogView({ onLogged, mealDate, mealTime }: Props) 
           weight_g: item.weight_g,
           foodId: matchFoodByName(item.name),
         }));
-        setEditedItems(edited);
+
+        // For unmatched items, pre-resolve to get portion info
+        const editedWithPortion = await Promise.all(
+          edited.map(async (item) => {
+            if (item.foodId !== null) return item;
+            try {
+              const resolved = await api.resolveNutrition(item.detectedName, item.weight_g);
+              return { ...item, portion: resolved.portion };
+            } catch {
+              return item;
+            }
+          })
+        );
+        setEditedItems(editedWithPortion);
 
         setPhase("confirm");
       } catch {
@@ -358,9 +372,16 @@ export default function PictureLogView({ onLogged, mealDate, mealTime }: Props) 
                     {food?.name ?? item.detectedName}
                   </p>
                   {!food && (
-                    <p className="text-[10px] mb-1" style={{ color: "#c62828" }}>
-                      ⚠️ Valores se obtendrán al confirmar
-                    </p>
+                    <>
+                      <p className="text-[10px] mb-1" style={{ color: "#c62828" }}>
+                        ⚠️ Valores se obtendrán al confirmar
+                      </p>
+                      {item.portion && (
+                        <p className="text-[11px] mt-0.5" style={{ color: "var(--ink-muted)" }}>
+                          {item.portion}
+                        </p>
+                      )}
+                    </>
                   )}
                   <p className="text-[11px]" style={{ color: "var(--ink-muted)" }}>
                     {Math.round(macros.kcal)} kcal · {Math.round(macros.protein * 10) / 10}g P

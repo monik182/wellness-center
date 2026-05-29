@@ -21,6 +21,8 @@ export interface ResolveResponse {
   source: "hardcoded" | "off" | "haiku";
   per_100g: { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
   macros:   { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
+  default_weight_g?: number;
+  portion?: string;
 }
 
 const BASE = import.meta.env.VITE_API_URL ?? "";
