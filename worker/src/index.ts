@@ -261,11 +261,9 @@ Rules:
 - If count given (e.g. "2 huevos"): weight_g = count * defaultWeight_g
 - If weight given (e.g. "150g de pollo"): use that weight
 - If neither: use defaultWeight_g
-- If a food cannot be matched: ask for clarification in Spanish (max 15 words)
+- If a food cannot be matched in the list, return it with the food's name anyway (e.g. {"foodId":"naranjas","name":"naranjas","weight_g":150})
 - Respond ONLY with valid JSON, no markdown:
-  {"type":"items","items":[{"foodId":"...","name":"...","weight_g":N},...]}
-  OR
-  {"type":"message","text":"..."}`;
+  {"type":"items","items":[{"foodId":"...","name":"...","weight_g":N},...]}`;
 
       const resp = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",

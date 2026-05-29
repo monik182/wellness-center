@@ -165,30 +165,27 @@ export default function PictureLogView({ onLogged, mealDate, mealTime }: Props) 
 
     setSaving(true);
     try {
-      const loggedItems: LoggedFoodItem[] = editedItems.map((edited) => {
-        if (edited.foodId) {
-          const food = foodById.get(edited.foodId)!;
+      const loggedItems: LoggedFoodItem[] = await Promise.all(
+        editedItems.map(async (edited) => {
+          if (edited.foodId) {
+            const food = foodById.get(edited.foodId)!;
+            return {
+              foodId: edited.foodId,
+              name: food.name,
+              weight_g: edited.weight_g,
+              ...macroScale(food, edited.weight_g),
+            };
+          }
+          const resolved = await api.resolveNutrition(edited.detectedName, edited.weight_g);
           return {
-            foodId: edited.foodId,
-            name: food.name,
+            foodId: `resolved-${edited.detectedName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+            name: resolved.name,
             weight_g: edited.weight_g,
-            ...macroScale(food, edited.weight_g),
-          };
-        } else {
-          // Fallback: unmapped food, estimate as 2 kcal per gram
-          return {
-            foodId: `unmapped-${edited.detectedName}`,
-            name: edited.detectedName,
-            weight_g: edited.weight_g,
-            kcal: edited.weight_g * 2,
-            protein: 0,
-            carbs: 0,
-            fat: 0,
-            fiber: 0,
+            ...resolved.macros,
             sugar: 0,
           };
-        }
-      });
+        })
+      );
 
       const totals = sumTotals(loggedItems);
       const meal: LoggedMeal = {
@@ -362,7 +359,7 @@ export default function PictureLogView({ onLogged, mealDate, mealTime }: Props) 
                   </p>
                   {!food && (
                     <p className="text-[10px] mb-1" style={{ color: "#c62828" }}>
-                      ⚠️ No encontrado — usando estimación
+                      ⚠️ Valores se obtendrán al confirmar
                     </p>
                   )}
                   <p className="text-[11px]" style={{ color: "var(--ink-muted)" }}>

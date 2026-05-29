@@ -41,6 +41,8 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
   const [showQuickMeals, setShowQuickMeals] = useState(true);
   const [mealDate, setMealDate] = useState(getTodayCET());
   const [mealTime, setMealTime] = useState(getCurrentTimeCET());
+  const [resolvedFoods, setResolvedFoods] = useState<Map<string, TrackerFood>>(new Map());
+  const [resolving, setResolving] = useState(false);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return TRACKER_FOODS;
@@ -70,9 +72,43 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
     setSelectorItems(selectorItems.filter((_, i) => i !== idx));
   }
 
+  async function handleResolveSearch() {
+    if (resolving || !query.trim()) return;
+    setResolving(true);
+    try {
+      const resolved = await api.resolveNutrition(query.trim(), 100);
+      const id = `resolved-${query.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+      const syntheticFood: TrackerFood = {
+        id,
+        name: resolved.name,
+        group: "Extra",
+        defaultWeight_g: 100,
+        kcalPer100g: resolved.per_100g.kcal,
+        proteinPer100g: resolved.per_100g.protein,
+        carbsPer100g: resolved.per_100g.carbs,
+        fatPer100g: resolved.per_100g.fat,
+        fiberPer100g: resolved.per_100g.fiber,
+        sugarPer100g: 0,
+        tags: [],
+      };
+      setResolvedFoods((prev) => new Map(prev).set(id, syntheticFood));
+      addFood(syntheticFood);
+      setQuery("");
+    } finally {
+      setResolving(false);
+    }
+  }
+
+  const foodById = useMemo(() => {
+    const map = new Map<string, TrackerFood>();
+    TRACKER_FOODS.forEach((f) => map.set(f.id, f));
+    resolvedFoods.forEach((f, id) => map.set(id, f));
+    return map;
+  }, [resolvedFoods]);
+
   function buildLoggedItems(): LoggedFoodItem[] {
     return selectorItems.map((sel) => {
-      const food = TRACKER_FOODS.find((f) => f.id === sel.foodId)!;
+      const food = foodById.get(sel.foodId)!;
       return { foodId: sel.foodId, name: food.name, weight_g: sel.weight_g, ...macroScale(food, sel.weight_g) };
     });
   }
@@ -101,12 +137,6 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectorItems]);
 
-  const foodById = useMemo(() => {
-    const map = new Map<string, TrackerFood>();
-    TRACKER_FOODS.forEach((f) => map.set(f.id, f));
-    return map;
-  }, []);
-
   async function handleChatSend() {
     if (!chatInput.trim() || chatLoading) return;
     const userMsg: ChatMessage = { role: "user", content: chatInput.trim() };
@@ -120,10 +150,22 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
         TRACKER_FOODS.map((f) => ({ id: f.id, name: f.name, defaultWeight_g: f.defaultWeight_g }))
       );
       if (result.type === "items") {
-        const loggedItems: LoggedFoodItem[] = result.items.map((add) => {
-          const food = TRACKER_FOODS.find((f) => f.id === add.foodId)!;
-          return { foodId: add.foodId, name: add.name, weight_g: add.weight_g, ...macroScale(food, add.weight_g) };
-        });
+        const loggedItems: LoggedFoodItem[] = await Promise.all(
+          result.items.map(async (add) => {
+            const food = TRACKER_FOODS.find((f) => f.id === add.foodId);
+            if (food) {
+              return { foodId: add.foodId, name: add.name, weight_g: add.weight_g, ...macroScale(food, add.weight_g) };
+            }
+            const resolved = await api.resolveNutrition(add.name, add.weight_g);
+            return {
+              foodId: `resolved-${add.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+              name: resolved.name,
+              weight_g: add.weight_g,
+              ...resolved.macros,
+              sugar: 0,
+            };
+          })
+        );
         const totals = sumTotals(loggedItems);
         const meal: LoggedMeal = {
           id: crypto.randomUUID(),
@@ -291,7 +333,21 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
           {query.trim() && (
             <Card className="mb-3.5 max-h-[220px] overflow-y-auto">
               {filtered.length === 0 ? (
-                <p className="text-xs px-3.5 py-3" style={{ color: "var(--ink-muted)" }}>Sin resultados.</p>
+                <div className="px-3.5 py-3">
+                  <p className="text-xs mb-2.5" style={{ color: "var(--ink-muted)" }}>Sin resultados.</p>
+                  <button
+                    disabled={resolving}
+                    onClick={handleResolveSearch}
+                    className="w-full px-2.5 py-2 text-[12px] font-medium rounded-[4px] cursor-pointer border-0 transition-all"
+                    style={{
+                      background: "var(--blue)",
+                      color: "white",
+                      opacity: resolving ? 0.6 : 1,
+                    }}
+                  >
+                    {resolving ? "Buscando..." : `Buscar valores para "${query.trim()}"`}
+                  </button>
+                </div>
               ) : (
                 filtered.map((food) => (
                   <button

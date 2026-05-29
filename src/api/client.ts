@@ -15,6 +15,14 @@ export interface DetectImageResult {
   error?: string;
 }
 
+export interface ResolveResponse {
+  name: string;
+  weight_g: number;
+  source: "hardcoded" | "off" | "haiku";
+  per_100g: { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
+  macros:   { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
+}
+
 const BASE = import.meta.env.VITE_API_URL ?? "";
 const KEY  = import.meta.env.VITE_API_KEY  ?? "";
 
@@ -86,5 +94,12 @@ export const api = {
       method: "POST",
       headers: headers(),
       body: JSON.stringify({ image, mimeType, foods }),
+    }).then((r) => r.json()),
+
+  resolveNutrition: (name: string, weight_g: number): Promise<ResolveResponse> =>
+    fetch(`${BASE}/api/nutrition/resolve`, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ name, weight_g }),
     }).then((r) => r.json()),
 };
