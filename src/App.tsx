@@ -9,6 +9,7 @@ import ShoppingPage from "./pages/ShoppingPage";
 import RulesPage        from "./pages/RulesPage";
 import MacroTargetsPage from "./pages/MacroTargetsPage";
 import CalorieTrackerPage from "./pages/CalorieTrackerPage";
+import NutritionLabelPage from "./pages/NutritionLabelPage";
 import "./styles/global.css";
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/foods"          element={<FoodsPage />}        />
           <Route path="/prep"           element={<PrepPage />}         />
           <Route path="/shopping"       element={<ShoppingPage />}     />
+          <Route path="/nutrition-label"    element={<NutritionLabelPage />}    />
           <Route path="/rules"          element={<RulesPage />}        />
           <Route path="/macro-targets"      element={<MacroTargetsPage />}      />
           <Route path="/calorie-tracker"    element={<CalorieTrackerPage />}    />

@@ -25,6 +25,73 @@ export interface ResolveResponse {
   portion?: string;
 }
 
+export interface NutritionLabelData {
+  product_name: string;
+  serving_size?: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  sugar_g: number;
+  fat_g: number;
+  saturated_fat_g?: number;
+  fiber_g?: number;
+  sodium_mg?: number;
+  confidence: number;
+  notes: string;
+  warnings: string[];
+}
+
+export interface NutritionLabelResult {
+  success: boolean;
+  error?: string;
+  missing_fields?: string[];
+  extracted?: Partial<NutritionLabelData>;
+  product_name?: string;
+  serving_size?: string;
+  calories?: number;
+  protein_g?: number;
+  carbs_g?: number;
+  sugar_g?: number;
+  fat_g?: number;
+  saturated_fat_g?: number;
+  fiber_g?: number;
+  sodium_mg?: number;
+  confidence?: number;
+  notes?: string;
+  warnings?: string[];
+}
+
+export interface CustomFood {
+  id: string;
+  name: string;
+  serving_size?: string;
+  serving_size_g?: number;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  sugar_g: number;
+  fat_g: number;
+  saturated_fat_g?: number;
+  fiber_g?: number;
+  sodium_mg?: number;
+  source: string;
+  created_at: string;
+}
+
+export interface CustomFoodInput {
+  name: string;
+  serving_size?: string;
+  serving_size_g?: number;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  sugar_g: number;
+  fat_g: number;
+  saturated_fat_g?: number;
+  fiber_g?: number;
+  sodium_mg?: number;
+}
+
 const BASE = import.meta.env.VITE_API_URL ?? "";
 const KEY  = import.meta.env.VITE_API_KEY  ?? "";
 
@@ -103,5 +170,22 @@ export const api = {
       method: "POST",
       headers: headers(),
       body: JSON.stringify({ name, weight_g }),
+    }).then((r) => r.json()),
+
+  extractNutritionLabel: (image: string, mimeType: string): Promise<NutritionLabelResult> =>
+    fetch(`${BASE}/api/nutrition-labels/extract`, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ image, mimeType }),
+    }).then((r) => r.json()),
+
+  getCustomFoods: (): Promise<{ success: boolean; foods: CustomFood[] }> =>
+    fetch(`${BASE}/api/custom-foods`, { headers: headers() }).then((r) => r.json()),
+
+  saveCustomFood: (food: CustomFoodInput): Promise<{ success: boolean; food?: CustomFood; error?: string }> =>
+    fetch(`${BASE}/api/custom-foods`, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify(food),
     }).then((r) => r.json()),
 };

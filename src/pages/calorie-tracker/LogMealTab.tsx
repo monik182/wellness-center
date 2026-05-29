@@ -6,6 +6,7 @@ import {
   type TrackerFood, type LoggedFoodItem, type LoggedMeal, type ChatMessage,
 } from "./types";
 import { api } from "../../api/client";
+import type { CustomFood } from "../../api/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,12 +54,42 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
   const [resolvedFoods, setResolvedFoods] = useState<Map<string, TrackerFood>>(new Map());
   const [resolving, setResolving] = useState(false);
   const [pendingChatItems, setPendingChatItems] = useState<PendingChatItem[] | null>(null);
+  const [customFoods, setCustomFoods] = useState<CustomFood[]>([]);
+
+  // Fetch custom foods on mount
+  useEffect(() => {
+    api.getCustomFoods().then((res) => {
+      if (res.success) {
+        setCustomFoods(res.foods || []);
+      }
+    });
+  }, []);
+
+  const allFoods = useMemo(() => {
+    const customAsTrackerFoods: TrackerFood[] = customFoods.map((cf) => {
+      const servingWeight = cf.serving_size_g ?? 100;
+      return {
+        id: `custom-${cf.id}`,
+        name: cf.name,
+        group: "Extra",
+        defaultWeight_g: servingWeight,
+        kcalPer100g: (cf.calories / servingWeight) * 100,
+        proteinPer100g: (cf.protein_g / servingWeight) * 100,
+        carbsPer100g: (cf.carbs_g / servingWeight) * 100,
+        fatPer100g: (cf.fat_g / servingWeight) * 100,
+        fiberPer100g: (cf.fiber_g ?? 0) / servingWeight * 100,
+        sugarPer100g: (cf.sugar_g / servingWeight) * 100,
+        tags: [],
+      };
+    });
+    return [...TRACKER_FOODS, ...customAsTrackerFoods];
+  }, [customFoods]);
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return TRACKER_FOODS;
+    if (!query.trim()) return allFoods;
     const q = query.toLowerCase();
-    return TRACKER_FOODS.filter((f) => f.name.toLowerCase().includes(q));
-  }, [query]);
+    return allFoods.filter((f) => f.name.toLowerCase().includes(q));
+  }, [query, allFoods]);
 
   function addFood(food: TrackerFood) {
     const existing = selectorItems.findIndex((i) => i.foodId === food.id);
@@ -111,10 +142,10 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
 
   const foodById = useMemo(() => {
     const map = new Map<string, TrackerFood>();
-    TRACKER_FOODS.forEach((f) => map.set(f.id, f));
+    allFoods.forEach((f) => map.set(f.id, f));
     resolvedFoods.forEach((f, id) => map.set(id, f));
     return map;
-  }, [resolvedFoods]);
+  }, [allFoods, resolvedFoods]);
 
   function buildLoggedItems(): LoggedFoodItem[] {
     return selectorItems.map((sel) => {

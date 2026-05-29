@@ -57,6 +57,58 @@ interface DetectImageResponse {
   error?: string;
 }
 
+interface NutritionLabelExtractionRequest {
+  image: string;
+  mimeType: string;
+}
+
+interface NutritionLabelData {
+  product_name: string;
+  serving_size?: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  sugar_g: number;
+  fat_g: number;
+  saturated_fat_g?: number;
+  fiber_g?: number;
+  sodium_mg?: number;
+  confidence: number;
+  notes: string;
+  warnings: string[];
+}
+
+interface CustomFood {
+  id: string;
+  name: string;
+  serving_size?: string;
+  serving_size_g?: number;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  sugar_g: number;
+  fat_g: number;
+  saturated_fat_g?: number;
+  fiber_g?: number;
+  sodium_mg?: number;
+  source: string;
+  created_at: string;
+}
+
+interface CustomFoodInput {
+  name: string;
+  serving_size?: string;
+  serving_size_g?: number;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  sugar_g: number;
+  fat_g: number;
+  saturated_fat_g?: number;
+  fiber_g?: number;
+  sodium_mg?: number;
+}
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -442,6 +494,285 @@ Rules:
       );
 
       return json(result);
+    }
+
+    // /api/nutrition-labels/extract
+    if (path === "/api/nutrition-labels/extract" && method === "POST") {
+      const body = await request.json() as NutritionLabelExtractionRequest;
+
+      if (!body.image || typeof body.image !== "string") {
+        return err("image is required", 400);
+      }
+
+      if (!body.mimeType || typeof body.mimeType !== "string") {
+        return err("mimeType is required", 400);
+      }
+
+      const base64Bytes = body.image.length * 0.75;
+      if (base64Bytes > 10 * 1024 * 1024) {
+        return err("Image too large (10 MB max)", 400);
+      }
+
+      const validMimes = ["image/jpeg", "image/png", "image/webp"];
+      if (!validMimes.includes(body.mimeType)) {
+        return err("Invalid image format. Use JPEG, PNG, or WebP.", 400);
+      }
+
+      // Label validation check
+      const labelCheckResp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": env.ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 10,
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "image",
+                  source: {
+                    type: "base64",
+                    media_type: body.mimeType,
+                    data: body.image,
+                  },
+                },
+                {
+                  type: "text",
+                  text: "Is this image a nutrition facts label, nutrition information table, or nutritional data from food packaging? Answer only 'yes' or 'no'.",
+                },
+              ],
+            },
+          ],
+        }),
+      });
+
+      if (!labelCheckResp.ok) {
+        return json({ success: false, error: "Label validation failed" }, 502);
+      }
+
+      const labelCheckAiResp = await labelCheckResp.json() as { content: Array<{ text: string }> };
+      const labelCheckText = (labelCheckAiResp.content[0]?.text ?? "").toLowerCase();
+      if (!labelCheckText.includes("yes")) {
+        return json({ success: false, error: "not_a_label" }, 400);
+      }
+
+      // Extract nutrition data
+      const extractionPrompt = `Extract nutritional information from this Nutrition Facts label image.
+
+Return ONLY a JSON object in this exact format (no markdown, no explanation):
+
+{
+  "product_name": "String (required, e.g., 'Greek Yogurt Vanilla')",
+  "serving_size": "String (optional, e.g., '1 container (150g)')",
+  "calories": 130,
+  "protein_g": 12,
+  "carbs_g": 8,
+  "sugar_g": 5,
+  "fat_g": 6,
+  "saturated_fat_g": 2,
+  "fiber_g": null,
+  "sodium_mg": null,
+  "confidence": 0.95,
+  "notes": "Clear label, standard US format",
+  "warnings": []
+}
+
+Rules:
+- All numeric values must be numbers, not strings
+- Use null for missing/unclear values
+- Product name is REQUIRED
+- Calories, Protein, Carbs, Sugar, Fat are REQUIRED
+- Include confidence score (0.0-1.0)
+- If values are unclear or format is unusual, include in 'warnings'
+- If label lists multiple servings, use the first/default serving
+- Always include the extracted serving size description
+- Convert all measurements to grams/mg if possible
+- If nutritional values are per 100g and not per serving, note this in 'warnings'`;
+
+      const extractResp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": env.ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 512,
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "image",
+                  source: {
+                    type: "base64",
+                    media_type: body.mimeType,
+                    data: body.image,
+                  },
+                },
+                {
+                  type: "text",
+                  text: extractionPrompt,
+                },
+              ],
+            },
+          ],
+        }),
+      });
+
+      if (!extractResp.ok) {
+        return json({ success: false, error: "Claude API error" }, 502);
+      }
+
+      const extractAiResp = await extractResp.json() as { content: Array<{ text: string }> };
+      const extractText = extractAiResp.content[0]?.text ?? "{}";
+
+      const match = extractText.match(/\{[\s\S]*\}/);
+      if (!match) {
+        return json({ success: false, error: "parse_error" }, 400);
+      }
+
+      try {
+        const extracted = JSON.parse(match[0]) as Partial<NutritionLabelData>;
+
+        // Validate required fields
+        const requiredFields: (keyof NutritionLabelData)[] = [
+          "product_name",
+          "calories",
+          "protein_g",
+          "carbs_g",
+          "sugar_g",
+          "fat_g",
+        ];
+
+        const missing = requiredFields.filter((f) => extracted[f] === null || extracted[f] === undefined);
+        if (missing.length > 0) {
+          return json(
+            {
+              success: false,
+              error: `missing_fields`,
+              missing_fields: missing,
+              extracted,
+            },
+            400
+          );
+        }
+
+        return json({
+          success: true,
+          product_name: extracted.product_name,
+          serving_size: extracted.serving_size,
+          calories: extracted.calories,
+          protein_g: extracted.protein_g,
+          carbs_g: extracted.carbs_g,
+          sugar_g: extracted.sugar_g,
+          fat_g: extracted.fat_g,
+          saturated_fat_g: extracted.saturated_fat_g,
+          fiber_g: extracted.fiber_g,
+          sodium_mg: extracted.sodium_mg,
+          confidence: extracted.confidence ?? 0.85,
+          notes: extracted.notes ?? "",
+          warnings: extracted.warnings ?? [],
+        });
+      } catch {
+        return json({ success: false, error: "parse_error" }, 400);
+      }
+    }
+
+    // /api/custom-foods (GET)
+    if (path === "/api/custom-foods" && method === "GET") {
+      const rows = await env.DB.prepare(
+        "SELECT id, name, serving_size, serving_size_g, calories, protein_g, carbs_g, sugar_g, fat_g, saturated_fat_g, fiber_g, sodium_mg, source, created_at FROM custom_foods ORDER BY created_at DESC"
+      ).all();
+
+      const foods = (rows.results ?? []) as CustomFood[];
+      return json({ success: true, foods });
+    }
+
+    // /api/custom-foods (POST)
+    if (path === "/api/custom-foods" && method === "POST") {
+      const body = await request.json() as CustomFoodInput;
+
+      // Validate required fields
+      if (!body.name || typeof body.name !== "string" || body.name.trim().length < 3) {
+        return err("name is required (min 3 characters)", 400);
+      }
+
+      if (typeof body.calories !== "number" || body.calories < 0) {
+        return err("calories must be a non-negative number", 400);
+      }
+
+      if (typeof body.protein_g !== "number" || body.protein_g < 0) {
+        return err("protein_g must be a non-negative number", 400);
+      }
+
+      if (typeof body.carbs_g !== "number" || body.carbs_g < 0) {
+        return err("carbs_g must be a non-negative number", 400);
+      }
+
+      if (typeof body.sugar_g !== "number" || body.sugar_g < 0) {
+        return err("sugar_g must be a non-negative number", 400);
+      }
+
+      if (typeof body.fat_g !== "number" || body.fat_g < 0) {
+        return err("fat_g must be a non-negative number", 400);
+      }
+
+      // Generate ID: random + slug from name
+      const id = `custom-${crypto.randomUUID().slice(0, 8)}`;
+      const now = new Date().toISOString();
+
+      try {
+        await env.DB.prepare(
+          `INSERT INTO custom_foods (id, name, serving_size, serving_size_g, calories, protein_g, carbs_g, sugar_g, fat_g, saturated_fat_g, fiber_g, sodium_mg, source, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'nutrition_label_scan', ?)`
+        ).bind(
+          id,
+          body.name.trim(),
+          body.serving_size,
+          body.serving_size_g,
+          body.calories,
+          body.protein_g,
+          body.carbs_g,
+          body.sugar_g,
+          body.fat_g,
+          body.saturated_fat_g,
+          body.fiber_g,
+          body.sodium_mg,
+          now
+        ).run();
+
+        const food: CustomFood = {
+          id,
+          name: body.name.trim(),
+          serving_size: body.serving_size,
+          serving_size_g: body.serving_size_g,
+          calories: body.calories,
+          protein_g: body.protein_g,
+          carbs_g: body.carbs_g,
+          sugar_g: body.sugar_g,
+          fat_g: body.fat_g,
+          saturated_fat_g: body.saturated_fat_g,
+          fiber_g: body.fiber_g,
+          sodium_mg: body.sodium_mg,
+          source: "nutrition_label_scan",
+          created_at: now,
+        };
+
+        return json({ success: true, food });
+      } catch (error) {
+        // Check if it's a UNIQUE constraint violation
+        if (error instanceof Error && error.message.includes("UNIQUE")) {
+          return err("Food name already exists", 409);
+        }
+        return err("Database error", 500);
+      }
     }
 
     return err("Not found", 404);

@@ -8,6 +8,7 @@ const NAV = [
   { to: "/macro-targets",   label: "Macros",    emoji: "🎯" },
   { to: "/wheel",           label: "Wheel",     emoji: "🎡" },
   { to: "/foods",           label: "Alimentos", emoji: "📊" },
+  { to: "/nutrition-label", label: "Etiquetas", emoji: "📋" },
   { to: "/prep",            label: "Prep",      emoji: "🔪" },
   { to: "/shopping",        label: "Compras",   emoji: "🛒" },
   { to: "/rules",           label: "Reglas",    emoji: "📏" },

@@ -32,5 +32,24 @@ CREATE TABLE IF NOT EXISTS foods_cache (
 
 CREATE INDEX IF NOT EXISTS idx_foods_cache_key ON foods_cache(key);
 
+CREATE TABLE IF NOT EXISTS custom_foods (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  serving_size TEXT,
+  serving_size_g INTEGER,
+  calories REAL NOT NULL,
+  protein_g REAL NOT NULL,
+  carbs_g REAL NOT NULL,
+  sugar_g REAL NOT NULL,
+  fat_g REAL NOT NULL,
+  saturated_fat_g REAL,
+  fiber_g REAL,
+  sodium_mg REAL,
+  source TEXT DEFAULT 'nutrition_label_scan',
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_custom_foods_name ON custom_foods(name);
+
 -- Migration: run once on live D1 database
 -- wrangler d1 execute DB --remote --command "ALTER TABLE foods_cache ADD COLUMN default_weight_g REAL; ALTER TABLE foods_cache ADD COLUMN portion TEXT;"
