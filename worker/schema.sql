@@ -15,3 +15,17 @@ CREATE TABLE IF NOT EXISTS gym_day (
 );
 
 INSERT OR IGNORE INTO gym_day (id, active, date) VALUES (1, 0, '');
+
+CREATE TABLE IF NOT EXISTS foods_cache (
+  key        TEXT PRIMARY KEY,
+  name       TEXT NOT NULL,
+  source     TEXT NOT NULL,
+  kcal       REAL NOT NULL,
+  protein    REAL NOT NULL,
+  carbs      REAL NOT NULL,
+  fat        REAL NOT NULL,
+  fiber      REAL,
+  fetched_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_foods_cache_key ON foods_cache(key);

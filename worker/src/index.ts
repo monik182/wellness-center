@@ -1,3 +1,5 @@
+import { resolveNutrition } from "./resolver";
+
 interface Env {
   DB: D1Database;
   API_KEY: string;
@@ -422,6 +424,26 @@ Rules:
 
       const result = await resp.json() as { text: string };
       return json({ text: result.text });
+    }
+
+    // /api/nutrition/resolve
+    if (path === "/api/nutrition/resolve" && method === "POST") {
+      const body = await request.json() as { name?: unknown; weight_g?: unknown };
+
+      if (!body.name || typeof body.name !== "string" || body.name.trim() === "") {
+        return err("name is required", 400);
+      }
+
+      if (typeof body.weight_g !== "number" || body.weight_g <= 0) {
+        return err("weight_g must be a positive number", 400);
+      }
+
+      const result = await resolveNutrition(
+        { name: body.name, weight_g: body.weight_g },
+        env
+      );
+
+      return json(result);
     }
 
     return err("Not found", 404);
