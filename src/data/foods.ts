@@ -283,6 +283,13 @@ export const FOODS: Food[] = [
     kcal: 154, protein: 1.7, carbs: 15, fat: 9, sugar: 1.2, fiber: 1.5,
     tags: ["⚠️ Calórico", "Calorías vacías"],
   },
+  {
+    name: "Rollitos vegetales congelados (Lidl)",
+    group: "Carbohidrato",
+    portion: "100g (1 rollito)",
+    kcal: 134, protein: 5.4, carbs: 17.6, fat: 4.1, sugar: 2.7, fiber: 0,
+    tags: [],
+  },
 
   // ─── VEGETABLES ──────────────────────────────────────────────────
   {
