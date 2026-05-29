@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 const NAV = [
+  { to: "/calorie-tracker", label: "Tracker",   emoji: "📝" },
   { to: "/",                label: "Comidas",   emoji: "🍽️" },
   { to: "/schedule",        label: "Horarios",  emoji: "⏰" },
   { to: "/macro-targets",   label: "Macros",    emoji: "🎯" },
@@ -10,7 +11,6 @@ const NAV = [
   { to: "/prep",            label: "Prep",      emoji: "🔪" },
   { to: "/shopping",        label: "Compras",   emoji: "🛒" },
   { to: "/rules",           label: "Reglas",    emoji: "📏" },
-  { to: "/calorie-tracker", label: "Tracker",   emoji: "📝" },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
