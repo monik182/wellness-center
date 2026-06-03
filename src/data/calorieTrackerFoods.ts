@@ -38,6 +38,13 @@ const PORTION_WEIGHTS: Record<string, number> = {
   "Guisantes finos ultracongelados": 100,
   "Pringles naturales": 30,
   "Rollitos vegetales congelados (Lidl)": 100,
+  "Maiz gigante frito": 100,
+  "Lemon Soda": 100,
+  "Galletti": 7.4,
+  "Powerade Limon": 100,
+  "Gatorade Limon": 100,
+  "Ensaladilla ultracongelada": 100,
+  "Mais & Cheese Snack": 100,
   // Vegetables
   "Brócoli": 100,
   "Canónigos": 50,
@@ -67,6 +74,7 @@ const PORTION_WEIGHTS: Record<string, number> = {
   "Queso parmesano/pecorino": 10,
   "Yogur griego 0%": 40,
   "Yogur stracciatella 0% proteico": 125,
+  "Yogur FAGE Total 0%": 100,
   // Fats
   "Aceite de oliva (1 cdita)": 5,
   "Aceite de oliva (1 cda)": 15,

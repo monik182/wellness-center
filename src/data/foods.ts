@@ -290,6 +290,55 @@ export const FOODS: Food[] = [
     kcal: 134, protein: 5.4, carbs: 17.6, fat: 4.1, sugar: 2.7, fiber: 0,
     tags: [],
   },
+  {
+    name: "Maiz gigante frito",
+    group: "Carbohidrato",
+    portion: "100g (1 porcion)",
+    kcal: 447, protein: 6, carbs: 72, fat: 14, sugar: 0.5, fiber: 4.7,
+    tags: ["⚠️ Calórico"],
+  },
+  {
+    name: "Lemon Soda",
+    group: "Carbohidrato",
+    portion: "100ml (1 porcion)",
+    kcal: 50, protein: 0, carbs: 12, fat: 0, sugar: 12, fiber: 0,
+    tags: ["Azúcar"],
+  },
+  {
+    name: "Galletti",
+    group: "Carbohidrato",
+    portion: "7.4g (1 biscotto)",
+    kcal: 36, protein: 0.5, carbs: 4.8, fat: 1.6, sugar: 1.4, fiber: 0,
+    tags: ["Baja cal"],
+  },
+  {
+    name: "Powerade Limon",
+    group: "Carbohidrato",
+    portion: "100ml",
+    kcal: 70, protein: 0, carbs: 3.6, fat: 0, sugar: 3.6, fiber: 0,
+    tags: ["Azúcar"],
+  },
+  {
+    name: "Gatorade Limon",
+    group: "Carbohidrato",
+    portion: "100ml",
+    kcal: 24, protein: 0, carbs: 5.9, fat: 0, sugar: 3.9, fiber: 0,
+    tags: [],
+  },
+  {
+    name: "Ensaladilla ultracongelada",
+    group: "Carbohidrato",
+    portion: "100g",
+    kcal: 65, protein: 2.5, carbs: 12, fat: 0.2, sugar: 2.7, fiber: 2.5,
+    tags: ["Baja cal", "Alta fibra"],
+  },
+  {
+    name: "Mais & Cheese Snack",
+    group: "Carbohidrato",
+    portion: "100g",
+    kcal: 489, protein: 7.4, carbs: 62, fat: 23, sugar: 4.7, fiber: 2.2,
+    tags: ["⚠️ Calórico", "Calorías vacías"],
+  },
 
   // ─── VEGETABLES ──────────────────────────────────────────────────
   {
@@ -489,6 +538,13 @@ export const FOODS: Food[] = [
     portion: "1 envase",
     kcal: 130, protein: 12, carbs: 12, fat: 3, sugar: 8, fiber: 0,
     tags: ["Alta proteína"],
+  },
+  {
+    name: "Yogur FAGE Total 0%",
+    group: "Lácteo",
+    portion: "100g",
+    kcal: 54, protein: 10.4, carbs: 3, fat: 0, sugar: 3, fiber: 0,
+    tags: ["Baja cal"],
   },
 
   // ─── FATS ────────────────────────────────────────────────────────
