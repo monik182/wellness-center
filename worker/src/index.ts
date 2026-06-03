@@ -488,12 +488,16 @@ Rules:
         return err("weight_g must be a positive number", 400);
       }
 
-      const result = await resolveNutrition(
-        { name: body.name, weight_g: body.weight_g },
-        env
-      );
-
-      return json(result);
+      try {
+        const result = await resolveNutrition(
+          { name: body.name, weight_g: body.weight_g },
+          env
+        );
+        return json(result);
+      } catch (e) {
+        console.error("resolveNutrition failed:", e);
+        return err("Failed to resolve nutrition data", 500);
+      }
     }
 
     // /api/nutrition-labels/extract

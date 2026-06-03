@@ -4,6 +4,7 @@ export interface MacroResult {
   carbs: number;
   fat: number;
   fiber: number;
+  sugar: number;
 }
 
 function levenshtein(a: string, b: string): number {
@@ -107,6 +108,7 @@ export async function fetchOpenFoodFacts(
         carbs: nutriments["carbohydrates_100g"]!,
         fat: nutriments["fat_100g"]!,
         fiber: nutriments["fiber_100g"] ?? 0,
+        sugar: nutriments["sugars_100g"] ?? 0,
       },
       default_weight_g,
     };

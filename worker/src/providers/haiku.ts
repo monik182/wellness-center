@@ -17,6 +17,7 @@ const FALLBACK_MACROS: MacroResult & { default_weight_g: number; portion: string
   carbs: 15,
   fat: 3,
   fiber: 1,
+  sugar: 5,
   default_weight_g: 100,
   portion: "1 ración (~100g)",
 };
@@ -90,6 +91,7 @@ This is a best-guess estimate. Use nutritional knowledge to provide reasonable v
       carbs: parsed.carbs_per_100g ?? 15,
       fat: parsed.fat_per_100g ?? 3,
       fiber: parsed.fiber_per_100g ?? 1,
+      sugar: parsed.sugar_per_100g ?? 0,
       default_weight_g: typeof parsed.default_weight_g === "number" ? parsed.default_weight_g : 100,
       portion: typeof parsed.portion === "string" ? parsed.portion : "1 ración (~100g)",
     };

@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS foods_cache (
   carbs             REAL NOT NULL,
   fat               REAL NOT NULL,
   fiber             REAL,
+  sugar             REAL,
   fetched_at        TEXT NOT NULL,
   default_weight_g  REAL,
   portion           TEXT

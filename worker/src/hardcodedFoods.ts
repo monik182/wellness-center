@@ -6,6 +6,7 @@ export interface HardcodedFood {
   carbs: number;
   fat: number;
   fiber: number;
+  sugar?: number;
   default_weight_g: number;
   portion: string;
 }

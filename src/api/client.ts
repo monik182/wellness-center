@@ -19,8 +19,8 @@ export interface ResolveResponse {
   name: string;
   weight_g: number;
   source: "hardcoded" | "off" | "haiku";
-  per_100g: { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
-  macros:   { kcal: number; protein: number; carbs: number; fat: number; fiber: number };
+  per_100g: { kcal: number; protein: number; carbs: number; fat: number; fiber: number; sugar: number };
+  macros:   { kcal: number; protein: number; carbs: number; fat: number; fiber: number; sugar: number };
   default_weight_g?: number;
   portion?: string;
 }

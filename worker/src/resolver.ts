@@ -18,6 +18,7 @@ export interface ResolveResponse {
     carbs: number;
     fat: number;
     fiber: number;
+    sugar: number;
   };
   macros: {
     kcal: number;
@@ -25,6 +26,7 @@ export interface ResolveResponse {
     carbs: number;
     fat: number;
     fiber: number;
+    sugar: number;
   };
   default_weight_g?: number;
   portion?: string;
@@ -70,24 +72,29 @@ async function writeToCache(
   db: D1Database,
   portionInfo?: { default_weight_g?: number; portion?: string }
 ): Promise<void> {
-  await db
-    .prepare(
-      "INSERT OR REPLACE INTO foods_cache (key, name, source, kcal, protein, carbs, fat, fiber, fetched_at, default_weight_g, portion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    )
-    .bind(
-      key,
-      name,
-      source,
-      macros.kcal,
-      macros.protein,
-      macros.carbs,
-      macros.fat,
-      macros.fiber,
-      new Date().toISOString(),
-      portionInfo?.default_weight_g ?? null,
-      portionInfo?.portion ?? null
-    )
-    .run();
+  try {
+    await db
+      .prepare(
+        "INSERT OR REPLACE INTO foods_cache (key, name, source, kcal, protein, carbs, fat, fiber, sugar, fetched_at, default_weight_g, portion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      )
+      .bind(
+        key,
+        name,
+        source,
+        macros.kcal,
+        macros.protein,
+        macros.carbs,
+        macros.fat,
+        macros.fiber,
+        macros.sugar,
+        new Date().toISOString(),
+        portionInfo?.default_weight_g ?? null,
+        portionInfo?.portion ?? null
+      )
+      .run();
+  } catch (e) {
+    console.error("writeToCache failed:", e);
+  }
 }
 
 function scaleToWeight(per100g: MacroResult, weight_g: number) {
@@ -97,6 +104,7 @@ function scaleToWeight(per100g: MacroResult, weight_g: number) {
     carbs: Math.round((per100g.carbs / 100) * weight_g * 10) / 10,
     fat: Math.round((per100g.fat / 100) * weight_g * 10) / 10,
     fiber: Math.round((per100g.fiber / 100) * weight_g * 10) / 10,
+    sugar: Math.round((per100g.sugar / 100) * weight_g * 10) / 10,
   };
 }
 
@@ -115,6 +123,7 @@ export async function resolveNutrition(
       carbs: hardcoded.carbs,
       fat: hardcoded.fat,
       fiber: hardcoded.fiber,
+      sugar: hardcoded.sugar ?? 0,
     };
     return {
       name: hardcoded.name,
@@ -128,9 +137,7 @@ export async function resolveNutrition(
   }
 
   // Step 2: D1 cache check
-  const cacheRow = await env.DB.prepare(
-    "SELECT name, source, kcal, protein, carbs, fat, fiber, default_weight_g, portion FROM foods_cache WHERE key = ?"
-  ).bind(normalized).first<{
+  let cacheRow: {
     name: string;
     source: string;
     kcal: number;
@@ -138,9 +145,29 @@ export async function resolveNutrition(
     carbs: number;
     fat: number;
     fiber: number;
+    sugar: number | null;
     default_weight_g: number | null;
     portion: string | null;
-  }>();
+  } | null = null;
+
+  try {
+    cacheRow = await env.DB.prepare(
+      "SELECT name, source, kcal, protein, carbs, fat, fiber, sugar, default_weight_g, portion FROM foods_cache WHERE key = ?"
+    ).bind(normalized).first<{
+      name: string;
+      source: string;
+      kcal: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+      fiber: number;
+      sugar: number | null;
+      default_weight_g: number | null;
+      portion: string | null;
+    }>();
+  } catch (e) {
+    console.error("foods_cache SELECT failed:", e);
+  }
 
   if (cacheRow) {
     const per_100g: MacroResult = {
@@ -149,6 +176,7 @@ export async function resolveNutrition(
       carbs: cacheRow.carbs,
       fat: cacheRow.fat,
       fiber: cacheRow.fiber,
+      sugar: cacheRow.sugar ?? 0,
     };
     return {
       name: cacheRow.name,

@@ -129,7 +129,7 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
         carbsPer100g: resolved.per_100g.carbs,
         fatPer100g: resolved.per_100g.fat,
         fiberPer100g: resolved.per_100g.fiber,
-        sugarPer100g: 0,
+        sugarPer100g: resolved.per_100g.sugar,
         tags: [],
       };
       setResolvedFoods((prev) => new Map(prev).set(id, syntheticFood));
@@ -250,7 +250,6 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
             name: resolved.name,
             weight_g: item.weight_g,
             ...resolved.macros,
-            sugar: 0,
           };
         })
       );
