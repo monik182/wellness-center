@@ -188,7 +188,7 @@ export default function WheelPage() {
 
       {/* Bottom buttons — sticky */}
       <div
-        className="sticky bottom-0 bg-[var(--beige)] px-4 pt-2.5 pb-5 flex justify-center gap-2.5 mt-2"
+        className="sticky bottom-0 bg-[var(--beige)] px-4 pt-2.5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] flex justify-center gap-2.5 mt-2"
         style={{ borderTop: "1px solid var(--border-color)" }}
       >
         {!showSummary ? (

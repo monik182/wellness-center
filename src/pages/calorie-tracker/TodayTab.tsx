@@ -38,12 +38,12 @@ function ActivitySelector({
   const [showTip, setShowTip] = useState<ActivityLevel | null>(null);
   return (
     <div>
-      <div className="flex gap-1.5">
+      <div className="grid grid-cols-2 gap-1.5 sm:flex sm:gap-1.5">
         {ACTIVITY_LEVELS.map(({ level, label }) => (
           <div key={level} className="relative flex-1">
             <button
               onClick={() => onChange(level)}
-              className="w-full px-2 py-1.5 rounded text-xs font-medium transition"
+              className="w-full px-2 py-1.5 rounded text-xs font-medium transition min-h-[44px]"
               style={{
                 background: selected === level ? "var(--ink)" : "transparent",
                 color: selected === level ? "#fff" : "var(--ink)",
@@ -395,7 +395,7 @@ function EditMealModal({
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent
-        className="fixed bottom-0 left-1/2 -translate-x-1/2 top-auto rounded-t-[4px] rounded-b-none w-full max-w-[600px] max-h-[80vh] overflow-y-auto"
+        className="fixed bottom-0 left-1/2 -translate-x-1/2 top-auto rounded-t-[4px] rounded-b-none w-full max-w-[600px] max-h-[80vh] overflow-y-auto pb-[env(safe-area-inset-bottom)]"
         style={{ transform: "translateX(-50%)" }}
       >
         <DialogHeader>
@@ -435,7 +435,7 @@ function EditMealModal({
                 max={2000}
                 defaultValue={item.weight_g}
                 onBlur={(e) => handleWeightChange(idx, e.target.value)}
-                className="w-20 px-2 py-1.5 text-[13px] font-[inherit]"
+                className="w-20 px-2 py-2.5 text-base font-[inherit]"
                 style={{
                   border: "1px solid var(--border-color)",
                   background: "var(--cream)",
@@ -640,7 +640,7 @@ export default function TodayTab({
       </div>
 
       {/* Macro card grid */}
-      <div className="grid grid-cols-4 gap-2.5 mb-5">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 mb-5">
         {macros.map((m) => (
           <MacroCard key={m.label} {...m} />
         ))}

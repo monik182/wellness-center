@@ -449,7 +449,7 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
                               );
                             }
                           }}
-                          className="w-16 px-1.5 py-1 text-[13px] text-center font-[inherit]"
+                          className="w-20 px-2 py-2.5 text-base text-center font-[inherit]"
                           style={{ border: "1px solid var(--border-color)", background: "var(--beige)" }}
                         />
                         <span className="text-[11px]" style={{ color: "var(--ink-muted)" }}>g</span>
@@ -530,7 +530,7 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
 
           {/* Food list */}
           {query.trim() && (
-            <Card className="mb-3.5 max-h-[220px] overflow-y-auto">
+            <Card className="mb-3.5 max-h-[220px] overflow-y-auto overscroll-contain">
               {filtered.length === 0 ? (
                 <div className="px-3.5 py-3">
                   <p className="text-xs mb-2.5" style={{ color: "var(--ink-muted)" }}>Sin resultados.</p>
@@ -601,7 +601,7 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
                           max={2000}
                           value={sel.weight_g}
                           onChange={(e) => updateWeight(idx, e.target.value)}
-                          className="w-16 px-1.5 py-1 text-[13px] text-center font-[inherit]"
+                          className="w-20 px-2 py-2.5 text-base text-center font-[inherit]"
                           style={{
                             border: "1px solid var(--border-color)",
                             background: "var(--beige)",
@@ -752,7 +752,7 @@ function ChatView({
   return (
     <div>
       {/* Chat messages */}
-      <div className="min-h-[200px] max-h-[300px] overflow-y-auto mb-3 flex flex-col gap-2.5">
+      <div className="min-h-[200px] max-h-[300px] overflow-y-auto mb-3 flex flex-col gap-2.5 overscroll-contain">
         {history.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
             <p className="text-xs py-6" style={{ color: "var(--ink-muted)" }}>
@@ -862,6 +862,7 @@ function ChatView({
         <Button
           variant="outline"
           size="icon"
+          className="size-11"
           onClick={() => imageInputRef.current?.click()}
           disabled={loading || imageLoading}
         >
@@ -870,9 +871,9 @@ function ChatView({
         <Button
           variant="outline"
           size="icon"
+          className={`size-11 ${recording ? "bg-[#e53e3e] text-white border-[#e53e3e]" : ""}`}
           onClick={toggleRecording}
           disabled={loading || transcribing || !!pendingImage}
-          className={recording ? "bg-[#e53e3e] text-white border-[#e53e3e]" : ""}
         >
           {transcribing ? (
             <span className="text-[10px]">...</span>
@@ -884,6 +885,7 @@ function ChatView({
         </Button>
         <Button
           size="icon"
+          className="size-11"
           onClick={pendingImage ? handleSendWithImage : onSend}
           disabled={loading || (!input.trim() && !pendingImage)}
         >

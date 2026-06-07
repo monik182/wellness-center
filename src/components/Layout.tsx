@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -15,10 +16,18 @@ const NAV = [
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    const handleOffline = () => {
+      console.log("Sin conexión. Los datos se actualizarán cuando vuelvas a estar en línea.");
+    };
+    window.addEventListener("offline", handleOffline);
+    return () => window.removeEventListener("offline", handleOffline);
+  }, []);
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-[var(--beige)] border-b border-[var(--border-color)] text-center px-5 pt-6 pb-3">
+      <header className="sticky top-0 z-20 bg-[var(--beige)] border-b border-[var(--border-color)] text-center px-5 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-3">
         <h1 style={{ fontFamily: "'La Belle Aurore', cursive", fontSize: 26, fontWeight: 400, color: "var(--ink)", margin: 0 }}>
           Plan de comidas
         </h1>
@@ -53,7 +62,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </nav>
 
       {/* Page content */}
-      <main className="flex-1 px-4 pt-6 pb-12">
+      <main className="flex-1 px-4 pt-6 pb-[calc(3rem+env(safe-area-inset-bottom))]">
         {children}
       </main>
     </div>
