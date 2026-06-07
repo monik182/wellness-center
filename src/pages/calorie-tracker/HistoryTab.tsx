@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { getTodayCET, sumMealTotals, type LoggedMeal } from "./types";
 import { api } from "../../api/client";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+import { X, ChevronDown, ChevronUp } from "lucide-react";
 
 type DateFilter = "hoy" | "ayer" | "esta_semana" | "este_mes" | "ultimo_mes" | "";
 
@@ -43,12 +43,31 @@ function getFilterRange(filter: DateFilter, today: string): { from: string; to: 
 const DEFAULT_DAYS_BACK = 3;
 const LOAD_MORE_LIMIT = 30;
 
+function SourceBadge({ source }: { source?: string }) {
+  if (!source) return <span style={{ color: "var(--ink-muted)" }}>—</span>;
+  const colors: Record<string, { bg: string; text: string }> = {
+    hardcoded: { bg: "#f5f5f5", text: "#666" },
+    off:       { bg: "#dbeafe", text: "#1e40af" },
+    haiku:     { bg: "#fef3c7", text: "#92400e" },
+  };
+  const style = colors[source] ?? { bg: "#f5f5f5", text: "#666" };
+  return (
+    <span
+      className="px-2 py-0.5 rounded text-[9px] font-medium"
+      style={{ background: style.bg, color: style.text }}
+    >
+      {source}
+    </span>
+  );
+}
+
 export default function HistoryTab() {
   const [allMeals, setAllMeals] = useState<LoggedMeal[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [dateFilter, setDateFilter] = useState<DateFilter>("");
+  const [expandedMeal, setExpandedMeal] = useState<string | null>(null);
 
   const today = getTodayCET();
 
@@ -187,29 +206,97 @@ export default function HistoryTab() {
 
               {/* Meal rows */}
               {dayMeals.map((meal) => (
-                <div
-                  key={meal.id}
-                  className="flex items-center py-3 px-4 mb-1.5 rounded-[4px]"
-                  style={{ background: "var(--cream)" }}
-                >
-                  <span
-                    className="text-[11px] w-12 shrink-0"
-                    style={{ color: "var(--ink-muted)" }}
+                <div key={meal.id} className="mb-1.5 rounded-[4px] overflow-hidden" style={{ background: "var(--cream)" }}>
+                  <div
+                    className="flex items-center py-3 px-4 cursor-pointer"
+                    onClick={() => setExpandedMeal(expandedMeal === meal.id ? null : meal.id)}
                   >
-                    {meal.time}
-                  </span>
-                  <span
-                    className="flex-1 text-[13px] font-medium truncate"
-                    style={{ color: "var(--ink)" }}
-                  >
-                    {meal.items.map((i) => i.name).join(", ")}
-                  </span>
-                  <span
-                    className="text-[12px] shrink-0 ml-3"
-                    style={{ color: "var(--ink-muted)" }}
-                  >
-                    {Math.round(meal.totals.kcal)} kcal
-                  </span>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      className="mr-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedMeal(expandedMeal === meal.id ? null : meal.id);
+                      }}
+                    >
+                      {expandedMeal === meal.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </Button>
+                    <span
+                      className="text-[11px] w-10 shrink-0"
+                      style={{ color: "var(--ink-muted)" }}
+                    >
+                      {meal.time}
+                    </span>
+                    <span
+                      className="flex-1 text-[13px] font-medium truncate"
+                      style={{ color: "var(--ink)" }}
+                    >
+                      {meal.items.map((i) => i.name).join(", ")}
+                    </span>
+                    <span
+                      className="text-[12px] shrink-0 ml-3"
+                      style={{ color: "var(--ink-muted)" }}
+                    >
+                      {Math.round(meal.totals.kcal)} kcal
+                    </span>
+                  </div>
+
+                  {expandedMeal === meal.id && (
+                    <div className="px-4 py-3 border-t" style={{ borderColor: "var(--border-color)", background: "#fafafa" }}>
+                      <div className="overflow-x-auto mb-3">
+                        <table className="w-full text-[10px]" style={{ color: "var(--ink)" }}>
+                          <thead>
+                            <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
+                              <th className="text-left py-1 pr-2">Alimento</th>
+                              <th className="text-right py-1 px-1">Peso</th>
+                              <th className="text-right py-1 px-1">kcal</th>
+                              <th className="text-right py-1 px-1">P</th>
+                              <th className="text-right py-1 px-1">C</th>
+                              <th className="text-right py-1 px-1">G</th>
+                              <th className="text-right py-1 px-1">F</th>
+                              <th className="text-right py-1 px-1">Az</th>
+                              <th className="text-right py-1 px-1">Origen</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {meal.items.map((item, idx) => (
+                              <tr key={idx} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                                <td className="py-1 pr-2 text-left">{item.name}</td>
+                                <td className="text-right py-1 px-1">{Math.round(item.weight_g)}g</td>
+                                <td className="text-right py-1 px-1">{Math.round(item.kcal)}</td>
+                                <td className="text-right py-1 px-1">{Math.round(item.protein * 10) / 10}</td>
+                                <td className="text-right py-1 px-1">{Math.round(item.carbs)}</td>
+                                <td className="text-right py-1 px-1">{Math.round(item.fat)}</td>
+                                <td className="text-right py-1 px-1">{Math.round(item.fiber * 10) / 10}</td>
+                                <td className="text-right py-1 px-1">{Math.round(item.sugar)}</td>
+                                <td className="text-right py-1 px-1"><SourceBadge source={item.source} /></td>
+                              </tr>
+                            ))}
+                            <tr style={{ background: "var(--beige)", fontWeight: "bold" }}>
+                              <td className="py-2 pr-2">TOTAL</td>
+                              <td className="text-right py-2 px-1">—</td>
+                              <td className="text-right py-2 px-1">{Math.round(meal.totals.kcal)}</td>
+                              <td className="text-right py-2 px-1">{Math.round(meal.totals.protein * 10) / 10}</td>
+                              <td className="text-right py-2 px-1">{Math.round(meal.totals.carbs)}</td>
+                              <td className="text-right py-2 px-1">{Math.round(meal.totals.fat)}</td>
+                              <td className="text-right py-2 px-1">{Math.round(meal.totals.fiber * 10) / 10}</td>
+                              <td className="text-right py-2 px-1">{Math.round(meal.totals.sugar)}</td>
+                              <td />
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div
+                        className="px-3 py-4 rounded text-center text-xs"
+                        style={{ background: "var(--cream)", border: "1px dashed var(--border-color)", color: "var(--ink-muted)" }}
+                      >
+                        <p className="font-semibold mb-1">Impacto Metabólico</p>
+                        <p>Disponible próximamente</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

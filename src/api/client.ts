@@ -61,6 +61,11 @@ export interface NutritionLabelResult {
   warnings?: string[];
 }
 
+export type AnalyzeImageResult =
+  | { type: "food"; success: boolean; detected_items?: DetectedItem[]; confidence_summary?: string; warnings?: string[] }
+  | { type: "label"; success: boolean; extracted?: Partial<NutritionLabelData>; warnings?: string[] }
+  | { type: "barcode"; message: string };
+
 export interface CustomFood {
   id: string;
   name: string;
@@ -187,5 +192,16 @@ export const api = {
       method: "POST",
       headers: headers(),
       body: JSON.stringify(food),
+    }).then((r) => r.json()),
+
+  analyzeImage: (
+    image: string,
+    mimeType: string,
+    foods?: Array<{ id: string; name: string; group: string }>
+  ): Promise<AnalyzeImageResult> =>
+    fetch(`${BASE}/api/analyze-image`, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ image, mimeType, foods }),
     }).then((r) => r.json()),
 };

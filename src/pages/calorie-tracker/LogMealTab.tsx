@@ -11,8 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Mic, Square, Send } from "lucide-react";
-import PictureLogView from "./PictureLogView";
+import { Mic, Square, Send, Camera, X as XIcon } from "lucide-react";
 
 export interface SelectorItem {
   foodId: string;
@@ -44,7 +43,7 @@ const TIME_SHORTCUTS = [
 export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }: Props) {
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
-  const [logView, setLogView] = useState<"chat" | "selector" | "picture">("chat");
+  const [logView, setLogView] = useState<"chat" | "selector">("chat");
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -137,6 +136,61 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
       setQuery("");
     } finally {
       setResolving(false);
+    }
+  }
+
+  async function handleImageSend(imageDataUrl: string, mimeType: string, text: string) {
+    const userMsg: ChatMessage = { role: "user", content: text || "(imagen)", image: imageDataUrl };
+    const newHistory = [...chatHistory, userMsg];
+    setChatHistory(newHistory);
+    setChatInput("");
+    setChatLoading(true);
+
+    try {
+      const result = await api.analyzeImage(imageDataUrl, mimeType, allFoods);
+      if (result.type === "food" && result.success && result.detected_items) {
+        const pending: PendingChatItem[] = await Promise.all(
+          result.detected_items.map(async (item) => {
+            const food = TRACKER_FOODS.find((f) => f.id === item.name.toLowerCase());
+            if (food) {
+              return {
+                foodId: food.id,
+                name: food.name,
+                weight_g: item.weight_g,
+                isMatched: true,
+                default_weight_g: food.defaultWeight_g,
+                portion: undefined,
+              };
+            }
+            const resolved = await api.resolveNutrition(item.name, item.weight_g);
+            return {
+              foodId: item.name,
+              name: resolved.name,
+              weight_g: item.weight_g,
+              isMatched: false,
+              default_weight_g: resolved.default_weight_g,
+              portion: resolved.portion,
+            };
+          })
+        );
+        setPendingChatItems(pending);
+        setChatHistory([...newHistory, { role: "assistant", content: "Confirma o ajusta los pesos antes de registrar:" }]);
+      } else if (result.type === "label" && result.success && result.extracted) {
+        const extracted = result.extracted;
+        const msg = `Etiqueta detectada: ${extracted.product_name || "sin nombre"}${extracted.serving_size ? ` (${extracted.serving_size})` : ""} - ${extracted.calories} kcal. Disponible próximamente.`;
+        setChatHistory([...newHistory, { role: "assistant", content: msg }]);
+      } else if (result.type === "barcode") {
+        setChatHistory([...newHistory, { role: "assistant", content: result.message }]);
+      } else {
+        const errorMsg = result.type === "food" || result.type === "label"
+          ? "No se pudo procesar la imagen. Intenta de nuevo."
+          : "Error desconocido.";
+        setChatHistory([...newHistory, { role: "assistant", content: errorMsg }]);
+      }
+    } catch (err) {
+      setChatHistory([...newHistory, { role: "assistant", content: "Error al procesar la imagen." }]);
+    } finally {
+      setChatLoading(false);
     }
   }
 
@@ -241,6 +295,7 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
               foodId: item.foodId,
               name: item.name,
               weight_g: item.weight_g,
+              source: "hardcoded",
               ...macroScale(food, item.weight_g),
             };
           }
@@ -249,6 +304,7 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
             foodId: `resolved-${item.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
             name: resolved.name,
             weight_g: item.weight_g,
+            source: resolved.source,
             ...resolved.macros,
           };
         })
@@ -279,8 +335,8 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
         className="flex p-1 mb-5 rounded-[4px]"
         style={{ background: "var(--beige)" }}
       >
-        {(["Chat", "Selector", "Foto"] as const).map((label) => {
-          const modeValue = label === "Chat" ? "chat" : label === "Selector" ? "selector" : "picture";
+        {(["Chat", "Selector"] as const).map((label) => {
+          const modeValue = label === "Chat" ? "chat" : "selector";
           const active = logView === modeValue;
           return (
             <button
@@ -357,6 +413,8 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
             loading={chatLoading}
             onSend={handleChatSend}
             onInputChange={setChatInput}
+            onSendImage={handleImageSend}
+            imageLoading={chatLoading}
           />
           {pendingChatItems && (
             <div className="mt-3">
@@ -419,12 +477,6 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
             </div>
           )}
         </>
-      ) : logView === "picture" ? (
-        <PictureLogView
-          onLogged={onLogged}
-          mealDate={mealDate}
-          mealTime={mealTime}
-        />
       ) : (
         <>
           {/* Quick meals */}
@@ -616,19 +668,23 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
 }
 
 function ChatView({
-  history, input, loading, onSend, onInputChange,
+  history, input, loading, onSend, onInputChange, onSendImage, imageLoading,
 }: {
   history: ChatMessage[];
   input: string;
   loading: boolean;
   onSend: () => void;
   onInputChange: (v: string) => void;
+  onSendImage: (image: string, mime: string, text: string) => Promise<void>;
+  imageLoading: boolean;
 }) {
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [pendingImage, setPendingImage] = useState<{ data: string; mime: string } | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -676,6 +732,23 @@ function ChatView({
     }
   }
 
+  function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      setPendingImage({ data: dataUrl, mime: file.type });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function handleSendWithImage() {
+    if (!pendingImage) return;
+    await onSendImage(pendingImage.data, pendingImage.mime, input);
+    setPendingImage(null);
+  }
+
   return (
     <div>
       {/* Chat messages */}
@@ -691,17 +764,31 @@ function ChatView({
             <div
               key={i}
               className={cn(
-                "px-3.5 py-2.5 text-[13px] max-w-[85%] leading-relaxed",
-                msg.role === "user"
-                  ? "self-end rounded-[4px] rounded-br-none"
-                  : "self-start rounded-[4px] rounded-bl-none shadow-sm"
+                "max-w-[85%]",
+                msg.role === "user" ? "self-end" : "self-start"
               )}
-              style={{
-                background: msg.role === "user" ? "var(--blue)" : "var(--beige)",
-                color: "var(--ink)",
-              }}
             >
-              {msg.content}
+              {msg.image && (
+                <img
+                  src={msg.image}
+                  alt="shared"
+                  className="max-w-[200px] rounded-[4px] mb-1.5"
+                />
+              )}
+              <div
+                className={cn(
+                  "px-3.5 py-2.5 text-[13px] leading-relaxed",
+                  msg.role === "user"
+                    ? "rounded-[4px] rounded-br-none"
+                    : "rounded-[4px] rounded-bl-none shadow-sm"
+                )}
+                style={{
+                  background: msg.role === "user" ? "var(--blue)" : "var(--beige)",
+                  color: "var(--ink)",
+                }}
+              >
+                {msg.content}
+              </div>
             </div>
           ))
         )}
@@ -735,6 +822,23 @@ function ChatView({
         </div>
       )}
 
+      {/* Image preview */}
+      {pendingImage && (
+        <div className="mb-2 flex gap-2 items-end">
+          <img
+            src={pendingImage.data}
+            alt="preview"
+            className="max-w-[100px] max-h-[100px] rounded-[4px]"
+          />
+          <button
+            onClick={() => setPendingImage(null)}
+            className="p-1 border-0 bg-transparent cursor-pointer"
+          >
+            <XIcon size={16} style={{ color: "var(--ink-muted)" }} />
+          </button>
+        </div>
+      )}
+
       {/* Input bar */}
       <div className="flex gap-2">
         <Input
@@ -742,16 +846,32 @@ function ChatView({
           value={input}
           placeholder="Escribe o dicta..."
           onChange={(e) => onInputChange(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") onSend(); }}
+          onKeyDown={(e) => { if (e.key === "Enter" && !pendingImage && !loading) onSend(); }}
           disabled={loading || transcribing}
           className="flex-1 text-[13px]"
           style={{ background: "var(--cream)" }}
         />
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleFileSelected}
+          className="hidden"
+        />
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => imageInputRef.current?.click()}
+          disabled={loading || imageLoading}
+        >
+          <Camera size={16} />
+        </Button>
         <Button
           variant="outline"
           size="icon"
           onClick={toggleRecording}
-          disabled={loading || transcribing}
+          disabled={loading || transcribing || !!pendingImage}
           className={recording ? "bg-[#e53e3e] text-white border-[#e53e3e]" : ""}
         >
           {transcribing ? (
@@ -764,8 +884,8 @@ function ChatView({
         </Button>
         <Button
           size="icon"
-          onClick={onSend}
-          disabled={loading || !input.trim()}
+          onClick={pendingImage ? handleSendWithImage : onSend}
+          disabled={loading || (!input.trim() && !pendingImage)}
         >
           <Send size={16} />
         </Button>

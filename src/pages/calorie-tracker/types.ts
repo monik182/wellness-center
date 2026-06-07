@@ -24,6 +24,7 @@ export interface LoggedFoodItem {
   fat: number;
   fiber: number;
   sugar: number;
+  source?: "hardcoded" | "off" | "haiku";
 }
 
 export interface MacroTotals {
@@ -43,9 +44,20 @@ export interface LoggedMeal {
   totals: MacroTotals;
 }
 
-export const TARGETS = {
-  regular: { kcal: 1475, protein: 120, carbs: 165, fat: 45, fiber: 27, sugar: 25 },
-  gym:     { kcal: 1650, protein: 130, carbs: 195, fat: 50, fiber: 27, sugar: 25 },
+export type ActivityLevel = "rest" | "low" | "medium" | "high";
+
+export const ACTIVITY_LEVELS = [
+  { level: "rest" as const,   label: "Descanso", desc: "Sin ejercicio. Día de recuperación." },
+  { level: "low" as const,    label: "Baja",     desc: "Caminata ligera, yoga suave, estiramientos activos, paseo largo." },
+  { level: "medium" as const, label: "Media",    desc: "Yoga dinámico, caminata larga/rápida, bicicleta recreativa, natación suave." },
+  { level: "high" as const,   label: "Alta",     desc: "Gimnasio (pesas), HIIT, running, natación intensa, deportes competitivos." },
+] as const;
+
+export const TARGETS: Record<ActivityLevel, { kcal: number; protein: number; carbs: number; fat: number; fiber: number; sugar: number }> = {
+  rest:   { kcal: 1475, protein: 120, carbs: 148, fat: 49, fiber: 27, sugar: 25 },
+  low:    { kcal: 1520, protein: 122, carbs: 152, fat: 51, fiber: 27, sugar: 25 },
+  medium: { kcal: 1565, protein: 125, carbs: 157, fat: 52, fiber: 27, sugar: 25 },
+  high:   { kcal: 1650, protein: 130, carbs: 165, fat: 55, fiber: 27, sugar: 25 },
 } as const;
 
 // CET/CEST-aware helpers using Europe/Madrid timezone
@@ -110,4 +122,5 @@ export interface Suggestion {
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+  image?: string; // base64 dataURL for local display only
 }

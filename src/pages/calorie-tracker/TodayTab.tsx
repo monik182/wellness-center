@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { TRACKER_FOODS } from "../../data/calorieTrackerFoods";
 import {
-  sumMealTotals, getTodayCET, getCurrentTimeCET, TARGETS, macroScale,
-  type LoggedMeal, type MacroTotals, type LoggedFoodItem, type Suggestion,
+  sumMealTotals, getTodayCET, getCurrentTimeCET, TARGETS, ACTIVITY_LEVELS, macroScale,
+  type LoggedMeal, type MacroTotals, type LoggedFoodItem, type Suggestion, type ActivityLevel,
 } from "./types";
 import { api } from "../../api/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, ChevronDown, ChevronUp, Info } from "lucide-react";
 
 // ── Group emoji map ──────────────────────────────────────────────
 const GROUP_EMOJI: Record<string, string> = {
@@ -26,6 +26,56 @@ const GROUP_EMOJI: Record<string, string> = {
 
 function groupEmoji(group: string): string {
   return GROUP_EMOJI[group] ?? "🍽️";
+}
+
+// ── Activity selector ───────────────────────────────────────────
+function ActivitySelector({
+  selected, onChange,
+}: {
+  selected: ActivityLevel;
+  onChange: (level: ActivityLevel) => void;
+}) {
+  const [showTip, setShowTip] = useState<ActivityLevel | null>(null);
+  return (
+    <div>
+      <div className="flex gap-1.5">
+        {ACTIVITY_LEVELS.map(({ level, label }) => (
+          <div key={level} className="relative flex-1">
+            <button
+              onClick={() => onChange(level)}
+              className="w-full px-2 py-1.5 rounded text-xs font-medium transition"
+              style={{
+                background: selected === level ? "var(--ink)" : "transparent",
+                color: selected === level ? "#fff" : "var(--ink)",
+                border: `1px solid ${selected === level ? "var(--ink)" : "var(--border-color)"}`,
+              }}
+            >
+              <div className="flex items-center justify-between gap-1">
+                <span>{label}</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowTip(showTip === level ? null : level);
+                  }}
+                  className="bg-transparent border-0 p-0 cursor-pointer ml-0.5"
+                >
+                  <Info size={12} style={{ color: "inherit" }} />
+                </button>
+              </div>
+            </button>
+            {showTip === level && (
+              <div
+                className="absolute top-full left-0 right-0 mt-1 p-2 rounded text-[10px] leading-tight z-10 shadow-md"
+                style={{ background: "var(--ink)", color: "#fff" }}
+              >
+                {ACTIVITY_LEVELS.find((a) => a.level === level)?.desc}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // ── Compute empty calories ──────────────────────────────────────
@@ -89,7 +139,94 @@ function MacroCard({
   );
 }
 
-// ── Meal card (flat, no expand) ──────────────────────────────────
+// ── Sugar card ──────────────────────────────────────────────────
+function SugarCard({ grossSugar, fiberTotal }: { grossSugar: number; fiberTotal: number }) {
+  const netSugar = Math.max(0, grossSugar - fiberTotal * 0.5);
+  let indicatorColor = "#4ade80"; // green
+  if (netSugar >= 25 && netSugar < 50) indicatorColor = "#eab308"; // yellow
+  else if (netSugar >= 50) indicatorColor = "#ef4444"; // red
+
+  return (
+    <Card>
+      <CardContent className="py-3 px-3">
+        <p
+          className="text-[10px] font-semibold uppercase tracking-wider mb-2"
+          style={{ color: "var(--ink-muted)" }}
+        >
+          Azúcar Real
+        </p>
+        <div className="flex justify-between items-center gap-2">
+          <div className="flex-1">
+            <p className="text-[11px] text-center" style={{ color: "var(--ink-muted)" }}>Bruta</p>
+            <p className="text-lg font-bold text-center">{Math.round(grossSugar)}g</p>
+          </div>
+          <div className="flex-1">
+            <p className="text-[11px] text-center" style={{ color: "var(--ink-muted)" }}>Neta (est.)</p>
+            <p className="text-lg font-bold text-center">{Math.round(netSugar)}g</p>
+          </div>
+        </div>
+        <div className="h-1 mt-3 rounded-full" style={{ background: indicatorColor }} />
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Glycemic card ───────────────────────────────────────────────
+function GlycemicCard({ fiberTotal, carbsTotal }: { fiberTotal: number; carbsTotal: number }) {
+  const ratio = carbsTotal > 0 ? (fiberTotal / carbsTotal) * 10 : null;
+  const netCarbs = carbsTotal - fiberTotal;
+
+  let ratioColor = "#4ade80";
+  if (ratio !== null) {
+    if (ratio >= 1.5) ratioColor = "#4ade80";
+    else if (ratio >= 1.0) ratioColor = "#eab308";
+    else ratioColor = "#ef4444";
+  }
+
+  return (
+    <Card>
+      <CardContent className="py-3 px-3">
+        <p
+          className="text-[10px] font-semibold uppercase tracking-wider mb-2"
+          style={{ color: "var(--ink-muted)" }}
+        >
+          Balance Glucémico
+        </p>
+        <div className="mb-2.5">
+          <p className="text-[10px] mb-1" style={{ color: "var(--ink-muted)" }}>Ratio Azúcar-Fibra</p>
+          <p className="text-sm font-semibold" style={{ color: ratioColor }}>
+            {ratio !== null ? `${Math.round(ratio * 10) / 10} g fibra/10g carbs` : "—"}
+          </p>
+        </div>
+        <div>
+          <p className="text-[10px] mb-1" style={{ color: "var(--ink-muted)" }}>Carbos Netos</p>
+          <p className="text-lg font-bold">{Math.round(netCarbs)}g</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Source badge ────────────────────────────────────────────────
+function SourceBadge({ source }: { source?: string }) {
+  if (!source) return <span style={{ color: "var(--ink-muted)" }}>—</span>;
+  const colors: Record<string, { bg: string; text: string }> = {
+    hardcoded: { bg: "#f5f5f5", text: "#666" },
+    off:       { bg: "#dbeafe", text: "#1e40af" },
+    haiku:     { bg: "#fef3c7", text: "#92400e" },
+  };
+  const style = colors[source] ?? { bg: "#f5f5f5", text: "#666" };
+  return (
+    <span
+      className="px-2 py-0.5 rounded text-[9px] font-medium"
+      style={{ background: style.bg, color: style.text }}
+    >
+      {source}
+    </span>
+  );
+}
+
+// ── Meal card (expandable) ─────────────────────────────────────
 function MealCard({
   meal, onEdit, onDelete,
 }: {
@@ -97,10 +234,14 @@ function MealCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const t = meal.totals;
   return (
     <Card className="mb-2 overflow-hidden">
-      <div className="px-4 py-3 flex items-start justify-between gap-2">
+      <div
+        className="px-4 py-3 flex items-start justify-between gap-2 cursor-pointer"
+        onClick={() => setExpanded(!expanded)}
+      >
         <div className="flex-1 min-w-0">
           <p className="text-[11px] mb-0.5" style={{ color: "var(--ink-muted)" }}>{meal.time}</p>
           <p className="text-[13px] font-semibold truncate" style={{ color: "var(--ink)" }}>
@@ -111,19 +252,87 @@ function MealCard({
           </p>
         </div>
         <div className="flex gap-1.5 shrink-0 pt-1">
-          <Button variant="outline" size="icon-xs" onClick={onEdit}>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded(!expanded);
+            }}
+          >
+            {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </Button>
+          <Button variant="outline" size="icon-xs" onClick={(e) => { e.stopPropagation(); onEdit(); }}>
             <Pencil size={14} />
           </Button>
           <Button
             variant="outline"
             size="icon-xs"
-            onClick={onDelete}
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
             className="text-[#c62828] border-[#fde8e8] hover:bg-[#fde8e8]"
           >
             <Trash2 size={14} />
           </Button>
         </div>
       </div>
+
+      {expanded && (
+        <div className="px-4 py-3 border-t" style={{ borderColor: "var(--border-color)", background: "var(--cream)" }}>
+          {/* Item details */}
+          <div className="overflow-x-auto mb-3">
+            <table className="w-full text-[11px]" style={{ color: "var(--ink)" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
+                  <th className="text-left py-1 pr-2">Alimento</th>
+                  <th className="text-right py-1 px-1">Peso</th>
+                  <th className="text-right py-1 px-1">kcal</th>
+                  <th className="text-right py-1 px-1">P</th>
+                  <th className="text-right py-1 px-1">C</th>
+                  <th className="text-right py-1 px-1">G</th>
+                  <th className="text-right py-1 px-1">F</th>
+                  <th className="text-right py-1 px-1">Az</th>
+                  <th className="text-right py-1 px-1">Origen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {meal.items.map((item, idx) => (
+                  <tr key={idx} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                    <td className="py-1 pr-2 text-left">{item.name}</td>
+                    <td className="text-right py-1 px-1">{Math.round(item.weight_g)}g</td>
+                    <td className="text-right py-1 px-1">{Math.round(item.kcal)}</td>
+                    <td className="text-right py-1 px-1">{Math.round(item.protein * 10) / 10}</td>
+                    <td className="text-right py-1 px-1">{Math.round(item.carbs)}</td>
+                    <td className="text-right py-1 px-1">{Math.round(item.fat)}</td>
+                    <td className="text-right py-1 px-1">{Math.round(item.fiber * 10) / 10}</td>
+                    <td className="text-right py-1 px-1">{Math.round(item.sugar)}</td>
+                    <td className="text-right py-1 px-1"><SourceBadge source={item.source} /></td>
+                  </tr>
+                ))}
+                <tr style={{ background: "var(--beige)", fontWeight: "bold" }}>
+                  <td className="py-2 pr-2">TOTAL</td>
+                  <td className="text-right py-2 px-1">—</td>
+                  <td className="text-right py-2 px-1">{Math.round(t.kcal)}</td>
+                  <td className="text-right py-2 px-1">{Math.round(t.protein * 10) / 10}</td>
+                  <td className="text-right py-2 px-1">{Math.round(t.carbs)}</td>
+                  <td className="text-right py-2 px-1">{Math.round(t.fat)}</td>
+                  <td className="text-right py-2 px-1">{Math.round(t.fiber * 10) / 10}</td>
+                  <td className="text-right py-2 px-1">{Math.round(t.sugar)}</td>
+                  <td />
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Metabolic impact placeholder */}
+          <div
+            className="px-3 py-4 rounded text-center text-xs"
+            style={{ background: "var(--cream)", border: "1px dashed var(--border-color)", color: "var(--ink-muted)" }}
+          >
+            <p className="font-semibold mb-1">Impacto Metabólico</p>
+            <p>Disponible próximamente</p>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }
@@ -271,7 +480,7 @@ export default function TodayTab({
   onLogMore, cachedSuggestions, onSuggestionsLoaded, onSuggestionsInvalidated,
 }: TodayTabProps) {
   const [meals, setMeals] = useState<LoggedMeal[]>([]);
-  const [gymDay, setGymDay] = useState(false);
+  const [activityLevel, setActivityLevelState] = useState<ActivityLevel>("rest");
   const [loading, setLoading] = useState(true);
   const [editingMeal, setEditingMeal] = useState<LoggedMeal | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -280,8 +489,30 @@ export default function TodayTab({
 
   const today = getTodayCET();
 
-  async function fetchSuggestions(currentMeals: LoggedMeal[], isGymDay: boolean) {
-    const currentTargets = isGymDay ? TARGETS.gym : TARGETS.regular;
+  // Load activity level from localStorage with date check
+  useEffect(() => {
+    const stored = localStorage.getItem("calorie_tracker_activity");
+    if (stored) {
+      try {
+        const { level, date } = JSON.parse(stored);
+        if (date === today && level) {
+          setActivityLevelState(level as ActivityLevel);
+        } else {
+          setActivityLevelState("rest");
+        }
+      } catch {
+        setActivityLevelState("rest");
+      }
+    }
+  }, [today]);
+
+  function setActivityLevel(level: ActivityLevel) {
+    setActivityLevelState(level);
+    localStorage.setItem("calorie_tracker_activity", JSON.stringify({ level, date: today }));
+  }
+
+  async function fetchSuggestions(currentMeals: LoggedMeal[], actLevel: ActivityLevel) {
+    const currentTargets = TARGETS[actLevel];
     const currentConsumed = sumMealTotals(currentMeals);
     const remaining = {
       kcal:    currentTargets.kcal    - currentConsumed.kcal,
@@ -297,7 +528,7 @@ export default function TodayTab({
       const result = await api.getSuggestions({
         remaining,
         time: getCurrentTimeCET(),
-        is_gym_day: isGymDay,
+        is_gym_day: actLevel === "high",
         meals_today,
         foods: TRACKER_FOODS,
       });
@@ -310,32 +541,26 @@ export default function TodayTab({
 
   useEffect(() => {
     const hasCachedSuggestions = cachedSuggestions !== null;
-    Promise.all([api.getMeals(today), api.getGymDay()])
-      .then(([m, g]) => {
+    api.getMeals(today)
+      .then((m) => {
         setMeals(m);
-        const isGym = g.active && g.date === today;
-        setGymDay(isGym);
-        if (g.active && g.date !== today) {
-          api.setGymDay(false, today);
-        }
         if (!hasCachedSuggestions) {
-          fetchSuggestions(m, isGym);
+          fetchSuggestions(m, activityLevel);
         }
       })
       .finally(() => setLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [today]);
+  }, [today, activityLevel]);
 
   const todayMeals = [...meals].sort((a, b) => b.time.localeCompare(a.time));
-  const targets = gymDay ? TARGETS.gym : TARGETS.regular;
+  const targets = TARGETS[activityLevel];
   const consumed: MacroTotals = sumMealTotals(todayMeals);
   const emptyKcal = computeEmptyKcal(todayMeals);
 
-  async function handleGymToggle(checked: boolean) {
-    setGymDay(checked);
-    await api.setGymDay(checked, today);
+  async function handleActivityChange(level: ActivityLevel) {
+    setActivityLevel(level);
     onSuggestionsInvalidated();
-    fetchSuggestions(meals, checked);
+    fetchSuggestions(meals, level);
   }
 
   async function handleDelete(id: string) {
@@ -344,7 +569,7 @@ export default function TodayTab({
     setMeals(newMeals);
     setConfirmDeleteId(null);
     onSuggestionsInvalidated();
-    fetchSuggestions(newMeals, gymDay);
+    fetchSuggestions(newMeals, activityLevel);
   }
 
   async function handleQuickLog(s: Suggestion) {
@@ -355,6 +580,7 @@ export default function TodayTab({
       foodId: s.foodId,
       name: s.name,
       weight_g: s.weight_g,
+      source: "hardcoded",
       ...scaled,
     };
     const meal: LoggedMeal = {
@@ -368,7 +594,7 @@ export default function TodayTab({
     const newMeals = [...meals, meal];
     setMeals(newMeals);
     onSuggestionsInvalidated();
-    fetchSuggestions(newMeals, gymDay);
+    fetchSuggestions(newMeals, activityLevel);
   }
 
   async function handleSaveEdit(updated: LoggedMeal) {
@@ -383,7 +609,7 @@ export default function TodayTab({
     setMeals(newMeals);
     setEditingMeal(null);
     onSuggestionsInvalidated();
-    fetchSuggestions(newMeals, gymDay);
+    fetchSuggestions(newMeals, activityLevel);
   }
 
   const [y, mo, d] = today.split("-").map(Number);
@@ -406,18 +632,11 @@ export default function TodayTab({
   return (
     <div>
       {/* Header */}
-      <div className="flex justify-between items-center mb-5">
-        <p className="text-[13px] capitalize" style={{ color: "var(--ink-muted)" }}>
+      <div className="mb-5">
+        <p className="text-[13px] capitalize mb-3" style={{ color: "var(--ink-muted)" }}>
           {dateDisplay}
         </p>
-        <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: "var(--ink)" }}>
-          <input
-            type="checkbox"
-            checked={gymDay}
-            onChange={(e) => handleGymToggle(e.target.checked)}
-          />
-          Dia de gym
-        </label>
+        <ActivitySelector selected={activityLevel} onChange={handleActivityChange} />
       </div>
 
       {/* Macro card grid */}
@@ -425,6 +644,12 @@ export default function TodayTab({
         {macros.map((m) => (
           <MacroCard key={m.label} {...m} />
         ))}
+      </div>
+
+      {/* Sugar and Glycemic cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-5">
+        <SugarCard grossSugar={consumed.sugar} fiberTotal={consumed.fiber} />
+        <GlycemicCard fiberTotal={consumed.fiber} carbsTotal={consumed.carbs} />
       </div>
 
       {/* Logged meals */}
@@ -463,7 +688,7 @@ export default function TodayTab({
               Sugerencias para el resto del dia
             </p>
             <button
-              onClick={() => fetchSuggestions(meals, gymDay)}
+              onClick={() => fetchSuggestions(meals, activityLevel)}
               disabled={suggestionsLoading}
               className="bg-transparent border-0 text-[11px] cursor-pointer p-0"
               style={{ color: "var(--ink-muted)" }}

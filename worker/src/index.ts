@@ -348,6 +348,311 @@ Rules:
       }
     }
 
+    // /api/analyze-image
+    if (path === "/api/analyze-image" && method === "POST") {
+      const body = await request.json() as {
+        image?: unknown;
+        mimeType?: unknown;
+        foods?: unknown;
+      };
+
+      if (!body.image || typeof body.image !== "string") {
+        return err("image is required", 400);
+      }
+
+      if (!body.mimeType || typeof body.mimeType !== "string") {
+        return err("mimeType is required", 400);
+      }
+
+      const base64Bytes = body.image.length * 0.75;
+      if (base64Bytes > 10 * 1024 * 1024) {
+        return err("Image too large (10 MB max)", 400);
+      }
+
+      const validMimes = ["image/jpeg", "image/png", "image/webp"];
+      if (!validMimes.includes(body.mimeType)) {
+        return err("Invalid image format. Use JPEG, PNG, or WebP.", 400);
+      }
+
+      // Classify image type
+      const classifyResp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": env.ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20250101",
+          max_tokens: 10,
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "image",
+                  source: {
+                    type: "base64",
+                    media_type: body.mimeType,
+                    data: body.image,
+                  },
+                },
+                {
+                  type: "text",
+                  text: 'Is this (A) a photo of food/meal, (B) a nutrition label/ingredient list on packaging, or (C) a barcode? Reply with ONLY the letter (A, B, or C) and nothing else.',
+                },
+              ],
+            },
+          ],
+        }),
+      });
+
+      if (!classifyResp.ok) {
+        return json({ type: "barcode", message: "Error al procesar la imagen." }, 502);
+      }
+
+      const classifyData = await classifyResp.json() as { content: Array<{ text: string }> };
+      const classifyText = (classifyData.content[0]?.text ?? "").trim().toUpperCase();
+
+      // Route based on classification
+      if (classifyText.includes("A")) {
+        // Food detection - reuse existing logic
+        const foods = Array.isArray(body.foods) ? body.foods : [];
+        const foodLines = (foods as any[])
+          .map((f) => `${f.id}|${f.name}`)
+          .join("\n");
+
+        const prompt = `You are a food identification AI. Analyze this meal photo and identify each distinct food item visible. For each item, estimate its weight in grams.
+
+Available foods you can match to (id|name):
+${foodLines}
+
+Return ONLY valid JSON in this format (no markdown, no explanation):
+{
+  "detected_items": [
+    {
+      "name": "Food name (use Spanish names from the list if possible, or best match)",
+      "weight_g": 150,
+      "confidence": 0.95,
+      "reasoning": "Brief description of visual cues"
+    }
+  ],
+  "confidence_summary": "Overall confidence assessment",
+  "warnings": ["Any ambiguities or uncertainties"]
+}
+
+Rules:
+- Only identify items clearly visible
+- Use weights between 50-500g per item
+- confidence: 0.8-1.0 scale
+- If no food is visible, return empty detected_items array
+- Match food names to the available foods list when possible
+- Be conservative: if uncertain, lower the confidence score`;
+
+        const resp = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": env.ANTHROPIC_API_KEY,
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 1024,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "image",
+                    source: {
+                      type: "base64",
+                      media_type: body.mimeType,
+                      data: body.image,
+                    },
+                  },
+                  {
+                    type: "text",
+                    text: prompt,
+                  },
+                ],
+              },
+            ],
+          }),
+        });
+
+        if (!resp.ok) {
+          return json({ type: "food", success: false, error: "Claude API error" }, 502);
+        }
+
+        const aiResp = await resp.json() as { content: Array<{ text: string }> };
+        const text = aiResp.content[0]?.text ?? "{}";
+        const match = text.match(/\{[\s\S]*\}/);
+
+        if (!match) {
+          return json({ type: "food", success: false, error: "Unable to parse response" }, 502);
+        }
+
+        try {
+          const parsed = JSON.parse(match[0]) as {
+            detected_items: DetectedItem[];
+            confidence_summary: string;
+            warnings: string[];
+          };
+
+          if (!Array.isArray(parsed.detected_items)) {
+            return json({ type: "food", success: false, error: "Invalid response format" }, 502);
+          }
+
+          return json({
+            type: "food",
+            success: true,
+            detected_items: parsed.detected_items,
+            confidence_summary: parsed.confidence_summary,
+            warnings: parsed.warnings || [],
+          });
+        } catch {
+          return json({ type: "food", success: false, error: "Unable to parse response" }, 502);
+        }
+      } else if (classifyText.includes("B")) {
+        // Nutrition label - reuse existing logic
+        const labelCheckResp = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": env.ANTHROPIC_API_KEY,
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 10,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "image",
+                    source: {
+                      type: "base64",
+                      media_type: body.mimeType,
+                      data: body.image,
+                    },
+                  },
+                  {
+                    type: "text",
+                    text: "Is this image a nutrition facts label, nutrition information table, or nutritional data from food packaging? Answer only 'yes' or 'no'.",
+                  },
+                ],
+              },
+            ],
+          }),
+        });
+
+        if (!labelCheckResp.ok) {
+          return json({ type: "label", success: false, error: "Label validation failed" }, 502);
+        }
+
+        const labelCheckAiResp = await labelCheckResp.json() as { content: Array<{ text: string }> };
+        const labelCheckText = (labelCheckAiResp.content[0]?.text ?? "").toLowerCase();
+
+        if (!labelCheckText.includes("yes")) {
+          return json({ type: "label", success: false, error: "not_a_label" }, 400);
+        }
+
+        // Extract nutrition data
+        const extractionPrompt = `Extract nutritional information from this Nutrition Facts label image.
+
+Return ONLY a JSON object in this exact format (no markdown, no explanation):
+
+{
+  "product_name": "String (required, e.g., 'Greek Yogurt Vanilla')",
+  "serving_size": "String (optional, e.g., '1 container (150g)')",
+  "calories": 130,
+  "protein_g": 12,
+  "carbs_g": 8,
+  "sugar_g": 5,
+  "fat_g": 6,
+  "saturated_fat_g": 2,
+  "fiber_g": null,
+  "sodium_mg": null,
+  "confidence": 0.95,
+  "notes": "Clear label, standard US format",
+  "warnings": []
+}
+
+Rules:
+- All numeric values must be numbers, not strings
+- Use null for missing/unclear values
+- Product name is REQUIRED
+- Calories, Protein, Carbs, Sugar, Fat are REQUIRED
+- Include confidence score (0.0-1.0)
+- If values are unclear or format is unusual, include in 'warnings'
+- If label lists multiple servings, use the first/default serving
+- Always include the extracted serving size description
+- Convert all measurements to grams/mg if possible
+- If nutritional values are per 100g and not per serving, note this in 'warnings'`;
+
+        const extractResp = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": env.ANTHROPIC_API_KEY,
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 512,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "image",
+                    source: {
+                      type: "base64",
+                      media_type: body.mimeType,
+                      data: body.image,
+                    },
+                  },
+                  {
+                    type: "text",
+                    text: extractionPrompt,
+                  },
+                ],
+              },
+            ],
+          }),
+        });
+
+        if (!extractResp.ok) {
+          return json({ type: "label", success: false, error: "Claude API error" }, 502);
+        }
+
+        const extractAiResp = await extractResp.json() as { content: Array<{ text: string }> };
+        const extractText = extractAiResp.content[0]?.text ?? "{}";
+        const match = extractText.match(/\{[\s\S]*\}/);
+
+        if (!match) {
+          return json({ type: "label", success: false, error: "parse_error" }, 400);
+        }
+
+        try {
+          const extracted = JSON.parse(match[0]) as Partial<NutritionLabelData>;
+          return json({
+            type: "label",
+            success: true,
+            extracted,
+            warnings: extracted.warnings || [],
+          });
+        } catch {
+          return json({ type: "label", success: false, error: "Unable to parse response" }, 502);
+        }
+      } else {
+        // Barcode or unknown
+        return json({ type: "barcode", message: "Escaneo de código de barras disponible próximamente" });
+      }
+    }
+
     // /api/detect-image
     if (path === "/api/detect-image" && method === "POST") {
       const body = await request.json() as DetectImageRequest;
