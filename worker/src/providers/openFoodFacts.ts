@@ -29,7 +29,8 @@ function computeSimilarity(query: string, productName: string): number {
 }
 
 export async function fetchOpenFoodFacts(
-  name: string
+  name: string,
+  offCookie: string
 ): Promise<{ result: MacroResult; displayName: string; default_weight_g?: number } | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 5000);
@@ -41,7 +42,8 @@ export async function fetchOpenFoodFacts(
     const resp = await fetch(url, {
       signal: controller.signal,
       headers: {
-        "User-Agent": `CalorieTracker/1.0 (${Deno.env.get("AGENT")})`,
+        "User-Agent": "CalorieTracker/1.0 (wellness-app)",
+        ...(offCookie ? { Cookie: offCookie } : {}),
       },
     });
 

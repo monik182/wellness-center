@@ -110,7 +110,7 @@ function scaleToWeight(per100g: MacroResult, weight_g: number) {
 
 export async function resolveNutrition(
   req: ResolveRequest,
-  env: { DB: D1Database; ANTHROPIC_API_KEY: string }
+  env: { DB: D1Database; ANTHROPIC_API_KEY: string; OFF_COOKIE: string }
 ): Promise<ResolveResponse> {
   const normalized = normalizeFoodName(req.name);
 
@@ -190,7 +190,7 @@ export async function resolveNutrition(
   }
 
   // Step 3: Open Food Facts
-  const offResult = await fetchOpenFoodFacts(req.name);
+  const offResult = await fetchOpenFoodFacts(req.name, env.OFF_COOKIE);
   if (offResult) {
     await writeToCache(normalized, offResult.displayName, "off", offResult.result, env.DB, {
       default_weight_g: offResult.default_weight_g,
