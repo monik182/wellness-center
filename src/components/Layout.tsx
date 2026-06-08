@@ -29,7 +29,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Header */}
       <header className="sticky top-0 z-20 bg-[var(--beige)] border-b border-[var(--border-color)] text-center px-5 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-3">
         <h1 style={{ fontFamily: "'La Belle Aurore', cursive", fontSize: 26, fontWeight: 400, color: "var(--ink)", margin: 0 }}>
-          Plan de comidas
+          Wellness Center
         </h1>
         <p className="text-[11px] font-light mt-0.5" style={{ color: "var(--ink-muted)" }}>
           ~1,500 kcal/día · Gym mañana/tarde + descanso
