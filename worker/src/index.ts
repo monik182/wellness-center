@@ -1,3 +1,6 @@
+import { streamText } from "ai";
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { z } from "zod";
 import { resolveNutrition } from "./resolver";
 
 interface Env {
@@ -33,7 +36,19 @@ interface Suggestion {
 }
 
 interface ChatRequest {
-  messages: Array<{ role: "user" | "assistant"; content: string }>;
+  messages: Array<{
+    role: "user" | "assistant";
+    content: string | Array<{
+      type: "text" | "image";
+      text?: string;
+      source?: {
+        type: "base64";
+        media_type: string;
+        data: string;
+      };
+    }>;
+    toolInvocations?: unknown[];
+  }>;
   foods: Array<{ id: string; name: string; defaultWeight_g: number }>;
 }
 
@@ -304,48 +319,54 @@ Rules:
         .map((f) => `${f.id}|${f.name}|${f.defaultWeight_g}g`)
         .join("\n");
 
-      const systemPrompt = `You are a nutrition logging assistant. The user describes what they ate. Match their input to foods from the list below and return structured data.
+      const systemPrompt = `You are a nutrition logging assistant. The user describes what they ate or shows you a photo. Identify food items and call the logFood tool with structured data.
 
 Available foods (id|name|defaultWeight_g):
 ${foodLines}
 
-Rules:
+Rules for food identification:
 - Match fuzzy: "pollo" → pechuga_pollo, "huevos" → huevo, "avena" → avena
 - If count given (e.g. "2 huevos"): weight_g = count * defaultWeight_g
 - If weight given (e.g. "150g de pollo"): use that weight
 - If neither: use defaultWeight_g
-- If a food cannot be matched in the list, return it with the food's name anyway (e.g. {"foodId":"naranjas","name":"naranjas","weight_g":150})
-- Respond ONLY with valid JSON, no markdown:
-  {"type":"items","items":[{"foodId":"...","name":"...","weight_g":N},...]}`;
+- If a food cannot be matched, use its name as foodId
+- If user is uncertain about weight (says "no sé", "estoy insegura", etc): use the food's defaultWeight_g
+- If user asks questions unrelated to food: respond with a helpful message (do not call tool)
+- If user shows a photo: analyze it and identify visible foods, estimate weights
 
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": env.ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
+When you identify food items, ALWAYS call the logFood tool. Do not respond with JSON text.
+For non-food messages or questions, respond with text only (do not call tool).`;
+
+      const anthropicProvider = createAnthropic({ apiKey: env.ANTHROPIC_API_KEY });
+
+      const result = await streamText({
+        model: anthropicProvider("claude-haiku-4-5-20251001"),
+        system: systemPrompt,
+        messages: body.messages as any,
+        tools: {
+          logFood: {
+            description:
+              "Call this when you have identified food items to log from the conversation or image.",
+            parameters: z.object({
+              items: z.array(
+                z.object({
+                  foodId: z.string().describe('id from the foods list, or the food name if not in list (e.g. "unknown")'),
+                  name: z.string().describe("Food name in Spanish"),
+                  weight_g: z.number().describe("Weight in grams"),
+                })
+              ),
+            }),
+          },
         },
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 512,
-          system: systemPrompt,
-          messages: body.messages,
-        }),
+        maxSteps: 1,
       });
 
-      if (!resp.ok) return err("Anthropic API error", 502);
-
-      const aiResp = await resp.json() as { content: Array<{ text: string }> };
-      const text = aiResp.content[0]?.text ?? "{}";
-
-      const match = text.match(/\{[\s\S]*\}/);
-      if (!match) return json({ type: "message", text: "No entendí. Intenta de nuevo." });
-
-      try {
-        return json(JSON.parse(match[0]));
-      } catch {
-        return json({ type: "message", text: "No entendí. Intenta de nuevo." });
-      }
+      return result.toDataStreamResponse({
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Headers": "Content-Type, X-Api-Key",
+        },
+      });
     }
 
     // /api/analyze-image
@@ -647,9 +668,120 @@ Rules:
         } catch {
           return json({ type: "label", success: false, error: "Unable to parse response" }, 502);
         }
+      } else if (classifyText.includes("C")) {
+        // Barcode: extract code and lookup
+        const barcodePrompt =
+          "Read the barcode or QR code number in this image. Return only the numeric digits or code (e.g., 8717345039622 or 5901234123457). If you cannot read the code, respond with 'ERROR'.";
+
+        const barcodeReadResp = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": env.ANTHROPIC_API_KEY,
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify({
+            model: "claude-haiku-4-5-20251001",
+            max_tokens: 50,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "image",
+                    source: {
+                      type: "base64",
+                      media_type: body.mimeType,
+                      data: body.image,
+                    },
+                  },
+                  {
+                    type: "text",
+                    text: barcodePrompt,
+                  },
+                ],
+              },
+            ],
+          }),
+        });
+
+        if (!barcodeReadResp.ok) {
+          return json({ type: "barcode", found: false, code: null, error: "Claude API error" }, 502);
+        }
+
+        const barcodeReadData = await barcodeReadResp.json() as { content: Array<{ text: string }> };
+        const barcodeCode = (barcodeReadData.content[0]?.text ?? "").trim();
+
+        if (barcodeCode === "ERROR" || !barcodeCode) {
+          return json({ type: "barcode", found: false, code: barcodeCode || null, message: "No se pudo leer el código de barras" });
+        }
+
+        // Lookup barcode via OFF
+        try {
+          const offResp = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcodeCode}.json`);
+          if (!offResp.ok) {
+            return json({ type: "barcode", found: false, code: barcodeCode, message: "Producto no encontrado en Open Food Facts" });
+          }
+
+          const offData = await offResp.json() as {
+            product?: {
+              product_name?: string;
+              nutriments?: Record<string, number | undefined>;
+            };
+          };
+
+          if (!offData.product) {
+            return json({ type: "barcode", found: false, code: barcodeCode, message: "Producto no encontrado" });
+          }
+
+          const nutrients = offData.product.nutriments || {};
+          const kcal = nutrients["energy-kcal"] || 0;
+          const protein = nutrients["proteins"] || 0;
+          const carbs = nutrients["carbohydrates"] || 0;
+          const fat = nutrients["fat"] || 0;
+          const fiber = nutrients["fiber"] || 0;
+          const sugar = nutrients["sugars"] || 0;
+
+          // Write to D1 cache
+          const cacheKey = `${barcodeCode}`;
+          const now = new Date().toISOString();
+          await env.DB.prepare(`
+            INSERT INTO foods_cache (key, name, source, kcal, protein, carbs, fat, fiber, sugar, fetched_at, default_weight_g, portion)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET
+              name = excluded.name,
+              source = excluded.source,
+              kcal = excluded.kcal,
+              protein = excluded.protein,
+              carbs = excluded.carbs,
+              fat = excluded.fat,
+              fiber = excluded.fiber,
+              sugar = excluded.sugar,
+              fetched_at = excluded.fetched_at
+          `).bind(cacheKey, offData.product.product_name || "Producto", "off_barcode", kcal, protein, carbs, fat, fiber, sugar, now, 100, "100g").run();
+
+          return json({
+            type: "barcode",
+            found: true,
+            code: barcodeCode,
+            product: {
+              name: offData.product.product_name || "Producto",
+              kcal,
+              protein,
+              carbs,
+              fat,
+              fiber,
+              sugar,
+              per_100g: true,
+              default_weight_g: 100,
+            },
+          });
+        } catch (e) {
+          return json({ type: "barcode", found: false, code: barcodeCode, error: String(e) }, 500);
+        }
       } else {
-        // Barcode or unknown
-        return json({ type: "barcode", message: "Escaneo de código de barras disponible próximamente" });
+        // Unknown classification
+        return json({ type: "barcode", found: false, code: null, message: "No se pudo clasificar la imagen" });
       }
     }
 
@@ -780,6 +912,79 @@ Rules:
 
       const result = await resp.json() as { text: string };
       return json({ text: result.text });
+    }
+
+    // /api/barcode/lookup
+    if (path === "/api/barcode/lookup" && method === "POST") {
+      const body = await request.json() as { code?: unknown };
+
+      if (!body.code || typeof body.code !== "string" || body.code.trim() === "") {
+        return err("code is required", 400);
+      }
+
+      const code = body.code.trim();
+
+      try {
+        const offResp = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json`);
+        if (!offResp.ok) {
+          return json({ found: false, code, message: "Producto no encontrado en Open Food Facts" });
+        }
+
+        const offData = await offResp.json() as {
+          product?: {
+            product_name?: string;
+            nutriments?: Record<string, number | undefined>;
+          };
+        };
+
+        if (!offData.product) {
+          return json({ found: false, code, message: "Producto no encontrado" });
+        }
+
+        const nutrients = offData.product.nutriments || {};
+        const kcal = nutrients["energy-kcal"] || 0;
+        const protein = nutrients["proteins"] || 0;
+        const carbs = nutrients["carbohydrates"] || 0;
+        const fat = nutrients["fat"] || 0;
+        const fiber = nutrients["fiber"] || 0;
+        const sugar = nutrients["sugars"] || 0;
+
+        // Write to D1 cache
+        const cacheKey = code;
+        const now = new Date().toISOString();
+        await env.DB.prepare(`
+          INSERT INTO foods_cache (key, name, source, kcal, protein, carbs, fat, fiber, sugar, fetched_at, default_weight_g, portion)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(key) DO UPDATE SET
+            name = excluded.name,
+            source = excluded.source,
+            kcal = excluded.kcal,
+            protein = excluded.protein,
+            carbs = excluded.carbs,
+            fat = excluded.fat,
+            fiber = excluded.fiber,
+            sugar = excluded.sugar,
+            fetched_at = excluded.fetched_at
+        `).bind(cacheKey, offData.product.product_name || "Producto", "off_barcode", kcal, protein, carbs, fat, fiber, sugar, now, 100, "100g").run();
+
+        return json({
+          found: true,
+          code,
+          product: {
+            name: offData.product.product_name || "Producto",
+            kcal,
+            protein,
+            carbs,
+            fat,
+            fiber,
+            sugar,
+            per_100g: true,
+            default_weight_g: 100,
+          },
+        });
+      } catch (e) {
+        return json({ found: false, code, error: String(e) }, 500);
+      }
     }
 
     // /api/nutrition/resolve

@@ -18,7 +18,7 @@ export interface DetectImageResult {
 export interface ResolveResponse {
   name: string;
   weight_g: number;
-  source: "hardcoded" | "off" | "haiku";
+  source: "hardcoded" | "off" | "off_barcode" | "haiku" | "label_scan" | "custom";
   per_100g: { kcal: number; protein: number; carbs: number; fat: number; fiber: number; sugar: number };
   macros:   { kcal: number; protein: number; carbs: number; fat: number; fiber: number; sugar: number };
   default_weight_g?: number;
@@ -64,7 +64,7 @@ export interface NutritionLabelResult {
 export type AnalyzeImageResult =
   | { type: "food"; success: boolean; detected_items?: DetectedItem[]; confidence_summary?: string; warnings?: string[] }
   | { type: "label"; success: boolean; extracted?: Partial<NutritionLabelData>; warnings?: string[] }
-  | { type: "barcode"; message: string };
+  | { type: "barcode"; found: boolean; code: string | null; product?: { name: string; kcal: number; protein: number; carbs: number; fat: number; fiber: number; sugar: number; per_100g: boolean; default_weight_g: number }; message?: string; error?: string };
 
 export interface CustomFood {
   id: string;
@@ -203,5 +203,20 @@ export const api = {
       method: "POST",
       headers: headers(),
       body: JSON.stringify({ image, mimeType, foods }),
+    }).then((r) => r.json()),
+
+  resolveBarcode: (
+    code: string
+  ): Promise<{
+    found: boolean;
+    code: string;
+    product?: { name: string; kcal: number; protein: number; carbs: number; fat: number; fiber: number; sugar: number; per_100g: boolean; default_weight_g: number };
+    message?: string;
+    error?: string;
+  }> =>
+    fetch(`${BASE}/api/barcode/lookup`, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ code }),
     }).then((r) => r.json()),
 };

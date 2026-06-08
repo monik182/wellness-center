@@ -14,17 +14,21 @@ export interface TrackerFood {
   tags: FoodTag[];
 }
 
+export type FoodUnit = "g" | "ml" | "units";
+
 export interface LoggedFoodItem {
   foodId: string;
   name: string;
   weight_g: number;
+  unit?: FoodUnit; // g | ml | units. Absent = 'g'. For backward compat with old D1 data.
   kcal: number;
   protein: number;
   carbs: number;
   fat: number;
   fiber: number;
   sugar: number;
-  source?: "hardcoded" | "off" | "haiku";
+  source?: "hardcoded" | "off" | "off_barcode" | "haiku" | "label_scan" | "custom";
+  gi?: number; // Glycemic Index, placeholder for future features
 }
 
 export interface MacroTotals {

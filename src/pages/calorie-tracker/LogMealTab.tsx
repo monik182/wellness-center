@@ -3,7 +3,7 @@ import { TRACKER_FOODS, PRE_BUILT_MEALS } from "../../data/calorieTrackerFoods";
 import {
   getTodayCET, getCurrentTimeCET,
   macroScale, sumTotals,
-  type TrackerFood, type LoggedFoodItem, type LoggedMeal, type ChatMessage,
+  type TrackerFood, type LoggedFoodItem, type LoggedMeal,
 } from "./types";
 import { api } from "../../api/client";
 import type { CustomFood } from "../../api/client";
@@ -40,13 +40,15 @@ const TIME_SHORTCUTS = [
   { label: "Cena (7 PM)", time: "19:00" },
 ];
 
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }: Props) {
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
   const [logView, setLogView] = useState<"chat" | "selector">("chat");
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
   const [showQuickMeals, setShowQuickMeals] = useState(true);
   const [mealDate, setMealDate] = useState(getTodayCET());
   const [mealTime, setMealTime] = useState(getCurrentTimeCET());
@@ -54,6 +56,17 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
   const [resolving, setResolving] = useState(false);
   const [pendingChatItems, setPendingChatItems] = useState<PendingChatItem[] | null>(null);
   const [customFoods, setCustomFoods] = useState<CustomFood[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleInputChange = (value: string | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (typeof value === "string") {
+      setInput(value);
+    } else {
+      setInput(value.target.value);
+    }
+  };
 
   // Fetch custom foods on mount
   useEffect(() => {
@@ -63,6 +76,45 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
       }
     });
   }, []);
+
+  // Detect and process logFood tool calls from chat
+  useEffect(() => {
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "assistant") return;
+
+    const toolCalls = (last as any).toolInvocations || [];
+    const logFoodCall = toolCalls.find((t: any) => t.toolName === "logFood" && t.state === "call");
+    if (!logFoodCall) return;
+
+    const items = logFoodCall.args.items;
+    const uncertaintyKeywords = ["no sé", "no se", "no estoy segura", "no estoy seguro", "no sé cuánto", "no se cuanto"];
+    const userIsUncertain = messages.some((m) => m.role === "user" && uncertaintyKeywords.some((kw) => m.content.toLowerCase().includes(kw)));
+
+    Promise.all(
+      items.map(async (item: any) => {
+        const food = TRACKER_FOODS.find((f) => f.id === item.foodId);
+        if (food) {
+          return {
+            foodId: food.id,
+            name: food.name,
+            weight_g: userIsUncertain ? food.defaultWeight_g : item.weight_g,
+            isMatched: true,
+            default_weight_g: food.defaultWeight_g,
+            portion: undefined,
+          };
+        }
+        const resolved = await api.resolveNutrition(item.name, item.weight_g);
+        return {
+          foodId: item.foodId,
+          name: resolved.name,
+          weight_g: userIsUncertain ? (resolved.default_weight_g ?? item.weight_g) : item.weight_g,
+          isMatched: false,
+          default_weight_g: resolved.default_weight_g,
+          portion: resolved.portion,
+        };
+      })
+    ).then(setPendingChatItems);
+  }, [messages]);
 
   const allFoods = useMemo(() => {
     const customAsTrackerFoods: TrackerFood[] = customFoods.map((cf) => {
@@ -140,11 +192,11 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
   }
 
   async function handleImageSend(imageDataUrl: string, mimeType: string, text: string) {
-    const userMsg: ChatMessage = { role: "user", content: text || "(imagen)", image: imageDataUrl };
-    const newHistory = [...chatHistory, userMsg];
-    setChatHistory(newHistory);
-    setChatInput("");
-    setChatLoading(true);
+    const userMsg: ChatMessage = { role: "user", content: text || "(imagen)" };
+    const newHistory = [...messages, userMsg];
+    setMessages(newHistory);
+    setInput("");
+    setIsLoading(true);
 
     try {
       const result = await api.analyzeImage(imageDataUrl, mimeType, allFoods);
@@ -174,23 +226,31 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
           })
         );
         setPendingChatItems(pending);
-        setChatHistory([...newHistory, { role: "assistant", content: "Confirma o ajusta los pesos antes de registrar:" }]);
+        setMessages([...newHistory, { role: "assistant", content: "Confirma o ajusta los pesos antes de registrar:" }]);
       } else if (result.type === "label" && result.success && result.extracted) {
         const extracted = result.extracted;
         const msg = `Etiqueta detectada: ${extracted.product_name || "sin nombre"}${extracted.serving_size ? ` (${extracted.serving_size})` : ""} - ${extracted.calories} kcal. Disponible próximamente.`;
-        setChatHistory([...newHistory, { role: "assistant", content: msg }]);
-      } else if (result.type === "barcode") {
-        setChatHistory([...newHistory, { role: "assistant", content: result.message }]);
+        setMessages([...newHistory, { role: "assistant", content: msg }]);
+      } else if (result.type === "barcode" && result.found) {
+        setMessages([...newHistory, {
+          role: "assistant",
+          content: `Código de barras ${result.code}: ${result.product?.name || "Producto encontrado"}. Disponible próximamente.`,
+        }]);
+      } else if (result.type === "barcode" && !result.found) {
+        setMessages([...newHistory, {
+          role: "assistant",
+          content: result.message || "No se pudo leer el código de barras",
+        }]);
       } else {
         const errorMsg = result.type === "food" || result.type === "label"
           ? "No se pudo procesar la imagen. Intenta de nuevo."
           : "Error desconocido.";
-        setChatHistory([...newHistory, { role: "assistant", content: errorMsg }]);
+        setMessages([...newHistory, { role: "assistant", content: errorMsg }]);
       }
     } catch (err) {
-      setChatHistory([...newHistory, { role: "assistant", content: "Error al procesar la imagen." }]);
+      setMessages([...newHistory, { role: "assistant", content: "Error al procesar la imagen." }]);
     } finally {
-      setChatLoading(false);
+      setIsLoading(false);
     }
   }
 
@@ -232,16 +292,18 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectorItems]);
 
-  async function handleChatSend() {
-    if (!chatInput.trim() || chatLoading) return;
-    const userMsg: ChatMessage = { role: "user", content: chatInput.trim() };
-    const newHistory = [...chatHistory, userMsg];
-    setChatHistory(newHistory);
-    setChatInput("");
-    setChatLoading(true);
+  async function handleChatFormSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
+
+    const userMsg: ChatMessage = { role: "user", content: input.trim() };
+    const newHistory = [...messages, userMsg];
+    setMessages(newHistory);
+    setInput("");
+    setIsLoading(true);
 
     const uncertaintyKeywords = ["no sé", "no se", "no estoy segura", "no estoy seguro", "no sé cuánto", "no se cuanto"];
-    const userIsUncertain = uncertaintyKeywords.some((kw) => chatInput.toLowerCase().includes(kw));
+    const userIsUncertain = uncertaintyKeywords.some((kw) => input.toLowerCase().includes(kw));
 
     try {
       const result = await api.chat(
@@ -274,12 +336,12 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
           })
         );
         setPendingChatItems(pending);
-        setChatHistory([...newHistory, { role: "assistant", content: "Confirma o ajusta los pesos antes de registrar:" }]);
+        setMessages([...newHistory, { role: "assistant", content: "Confirma o ajusta los pesos antes de registrar:" }]);
       } else {
-        setChatHistory([...newHistory, { role: "assistant", content: result.text }]);
+        setMessages([...newHistory, { role: "assistant", content: result.text }]);
       }
     } finally {
-      setChatLoading(false);
+      setIsLoading(false);
     }
   }
 
@@ -321,7 +383,7 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
       onLogged();
       setSelectorItems([]);
       const names = pendingChatItems.map((i) => `${i.name} (${i.weight_g}g)`).join(", ");
-      setChatHistory((prev) => [...prev, { role: "assistant", content: `Registrado: ${names}` }]);
+      setMessages((prev) => [...prev, { role: "assistant", content: `Registrado: ${names}` }]);
       setPendingChatItems(null);
     } finally {
       setSaving(false);
@@ -408,13 +470,13 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
       {logView === "chat" ? (
         <>
           <ChatView
-            history={chatHistory}
-            input={chatInput}
-            loading={chatLoading}
-            onSend={handleChatSend}
-            onInputChange={setChatInput}
+            history={messages}
+            input={input}
+            loading={isLoading}
+            onSend={handleChatFormSubmit}
+            onInputChange={handleInputChange}
             onSendImage={handleImageSend}
-            imageLoading={chatLoading}
+            imageLoading={isLoading}
           />
           {pendingChatItems && (
             <div className="mt-3">
@@ -673,8 +735,8 @@ function ChatView({
   history: ChatMessage[];
   input: string;
   loading: boolean;
-  onSend: () => void;
-  onInputChange: (v: string) => void;
+  onSend: (e: React.FormEvent) => void | Promise<void>;
+  onInputChange: (value: string | React.ChangeEvent<HTMLInputElement>) => void;
   onSendImage: (image: string, mime: string, text: string) => Promise<void>;
   imageLoading: boolean;
 }) {
@@ -768,13 +830,6 @@ function ChatView({
                 msg.role === "user" ? "self-end" : "self-start"
               )}
             >
-              {msg.image && (
-                <img
-                  src={msg.image}
-                  alt="shared"
-                  className="max-w-[200px] rounded-[4px] mb-1.5"
-                />
-              )}
               <div
                 className={cn(
                   "px-3.5 py-2.5 text-[13px] leading-relaxed",
@@ -840,13 +895,13 @@ function ChatView({
       )}
 
       {/* Input bar */}
-      <div className="flex gap-2">
+      <form onSubmit={onSend} className="flex gap-2">
         <Input
           type="text"
           value={input}
           placeholder="Escribe o dicta..."
           onChange={(e) => onInputChange(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && !pendingImage && !loading) onSend(); }}
+          onKeyDown={(e) => { if (e.key === "Enter" && !pendingImage && !loading && input.trim()) { e.preventDefault(); onSend(e as any); } }}
           disabled={loading || transcribing}
           className="flex-1 text-[13px]"
           style={{ background: "var(--cream)" }}
@@ -860,6 +915,7 @@ function ChatView({
           className="hidden"
         />
         <Button
+          type="button"
           variant="outline"
           size="icon"
           className="size-11"
@@ -869,6 +925,7 @@ function ChatView({
           <Camera size={16} />
         </Button>
         <Button
+          type="button"
           variant="outline"
           size="icon"
           className={`size-11 ${recording ? "bg-[#e53e3e] text-white border-[#e53e3e]" : ""}`}
@@ -884,14 +941,15 @@ function ChatView({
           )}
         </Button>
         <Button
+          type="button"
           size="icon"
           className="size-11"
-          onClick={pendingImage ? handleSendWithImage : onSend}
+          onClick={pendingImage ? handleSendWithImage : () => onSend(new Event("submit") as any)}
           disabled={loading || (!input.trim() && !pendingImage)}
         >
           <Send size={16} />
         </Button>
-      </div>
+      </form>
     </div>
   );
 }
