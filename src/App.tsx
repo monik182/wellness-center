@@ -13,6 +13,7 @@ const RulesPage = lazy(() => import("./pages/RulesPage"));
 const MacroTargetsPage = lazy(() => import("./pages/MacroTargetsPage"));
 const CalorieTrackerPage = lazy(() => import("./pages/CalorieTrackerPage"));
 const NutritionLabelPage = lazy(() => import("./pages/NutritionLabelPage"));
+const SaludMetabolicaPage = lazy(() => import("./pages/SaludMetabolicaPage"));
 
 const LoadingFallback = () => (
   <div className="flex items-center justify-center h-32">
@@ -36,6 +37,7 @@ export default function App() {
             <Route path="/rules" element={<RulesPage />} />
             <Route path="/macro-targets" element={<MacroTargetsPage />} />
             <Route path="/calorie-tracker" element={<CalorieTrackerPage />} />
+            <Route path="/salud-metabolica" element={<SaludMetabolicaPage />} />
           </Routes>
         </Suspense>
       </Layout>

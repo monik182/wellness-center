@@ -28,7 +28,8 @@ export interface LoggedFoodItem {
   fiber: number;
   sugar: number;
   source?: "hardcoded" | "off" | "off_barcode" | "haiku" | "label_scan" | "custom";
-  gi?: number; // Glycemic Index, placeholder for future features
+  gi?: number; // Glycemic Index value (0-100)
+  gi_source?: "hardcoded" | "haiku"; // Where GI came from
 }
 
 export interface MacroTotals {
@@ -46,6 +47,7 @@ export interface LoggedMeal {
   time: string; // HH:MM CET
   items: LoggedFoodItem[];
   totals: MacroTotals;
+  consumption_order?: number[]; // Indices into items array, in consumption order
 }
 
 export type ActivityLevel = "rest" | "low" | "medium" | "high";
@@ -127,4 +129,9 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   image?: string; // base64 dataURL for local display only
+}
+
+export interface GlucoseDataPoint {
+  time_minutes: number;
+  impact: number;
 }

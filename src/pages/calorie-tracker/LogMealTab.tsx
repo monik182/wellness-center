@@ -11,7 +11,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Mic, Square, Send, Camera, X as XIcon } from "lucide-react";
+import { Mic, Square, Send, Camera, X as XIcon, Barcode } from "lucide-react";
+import { BarcodeScanner } from "./components/BarcodeScanner";
 
 export interface SelectorItem {
   foodId: string;
@@ -59,6 +60,8 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  const [pendingConsumptionOrder, setPendingConsumptionOrder] = useState<number[] | undefined>();
 
   const handleInputChange = (value: string | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     if (typeof value === "string") {
@@ -191,6 +194,28 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
     }
   }
 
+  async function handleBarcodeScanned(code: string) {
+    setShowBarcodeScanner(false);
+    const userMsg: ChatMessage = { role: "user", content: `Escaneo: ${code}` };
+    const newHistory = [...messages, userMsg];
+    setMessages(newHistory);
+    setIsLoading(true);
+
+    try {
+      const result = await api.resolveBarcode(code);
+      if (result.found && result.product) {
+        const msg = `Encontré: **${result.product.name}**. Por cada 100g tiene: ${Math.round(result.product.kcal)}kcal, ${Math.round(result.product.protein)}g proteína, ${Math.round(result.product.carbs)}g carbs, ${Math.round(result.product.fat)}g grasa. ¿Cuánto consumiste? (Ej: '50g', '200ml', '1 porción')`;
+        setMessages([...newHistory, { role: "assistant", content: msg }]);
+      } else {
+        setMessages([...newHistory, { role: "assistant", content: "No encontré este producto en la base de datos. Toma foto a la tabla nutricional del empaque para registrarlo." }]);
+      }
+    } catch {
+      setMessages([...newHistory, { role: "assistant", content: "Error al buscar el código de barras. Intenta de nuevo." }]);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   async function handleImageSend(imageDataUrl: string, mimeType: string, text: string) {
     const userMsg: ChatMessage = { role: "user", content: text || "(imagen)" };
     const newHistory = [...messages, userMsg];
@@ -231,15 +256,13 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
         const extracted = result.extracted;
         const msg = `Etiqueta detectada: ${extracted.product_name || "sin nombre"}${extracted.serving_size ? ` (${extracted.serving_size})` : ""} - ${extracted.calories} kcal. Disponible próximamente.`;
         setMessages([...newHistory, { role: "assistant", content: msg }]);
-      } else if (result.type === "barcode" && result.found) {
-        setMessages([...newHistory, {
-          role: "assistant",
-          content: `Código de barras ${result.code}: ${result.product?.name || "Producto encontrado"}. Disponible próximamente.`,
-        }]);
+      } else if (result.type === "barcode" && result.found && result.product) {
+        const msg = `Encontré: **${result.product.name}**. Por cada 100g tiene: ${Math.round(result.product.kcal)}kcal, ${Math.round(result.product.protein)}g proteína, ${Math.round(result.product.carbs)}g carbs, ${Math.round(result.product.fat)}g grasa. ¿Cuánto consumiste? (Ej: '50g', '200ml', '1 porción')`;
+        setMessages([...newHistory, { role: "assistant", content: msg }]);
       } else if (result.type === "barcode" && !result.found) {
         setMessages([...newHistory, {
           role: "assistant",
-          content: result.message || "No se pudo leer el código de barras",
+          content: "No encontré este producto en la base de datos. Toma foto a la tabla nutricional del empaque para registrarlo.",
         }]);
       } else {
         const errorMsg = result.type === "food" || result.type === "label"
@@ -336,6 +359,7 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
           })
         );
         setPendingChatItems(pending);
+        setPendingConsumptionOrder(result.consumption_order);
         setMessages([...newHistory, { role: "assistant", content: "Confirma o ajusta los pesos antes de registrar:" }]);
       } else {
         setMessages([...newHistory, { role: "assistant", content: result.text }]);
@@ -378,6 +402,7 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
         time: mealTime,
         items: loggedItems,
         totals,
+        consumption_order: pendingConsumptionOrder,
       };
       await api.addMeal(meal);
       onLogged();
@@ -385,6 +410,7 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
       const names = pendingChatItems.map((i) => `${i.name} (${i.weight_g}g)`).join(", ");
       setMessages((prev) => [...prev, { role: "assistant", content: `Registrado: ${names}` }]);
       setPendingChatItems(null);
+      setPendingConsumptionOrder(undefined);
     } finally {
       setSaving(false);
     }
@@ -477,6 +503,7 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
             onInputChange={handleInputChange}
             onSendImage={handleImageSend}
             imageLoading={isLoading}
+            onBarcode={() => setShowBarcodeScanner(true)}
           />
           {pendingChatItems && (
             <div className="mt-3">
@@ -725,12 +752,19 @@ export default function LogMealTab({ selectorItems, setSelectorItems, onLogged }
           )}
         </>
       )}
+
+      {showBarcodeScanner && (
+        <BarcodeScanner
+          onScan={handleBarcodeScanned}
+          onClose={() => setShowBarcodeScanner(false)}
+        />
+      )}
     </div>
   );
 }
 
 function ChatView({
-  history, input, loading, onSend, onInputChange, onSendImage, imageLoading,
+  history, input, loading, onSend, onInputChange, onSendImage, imageLoading, onBarcode,
 }: {
   history: ChatMessage[];
   input: string;
@@ -739,6 +773,7 @@ function ChatView({
   onInputChange: (value: string | React.ChangeEvent<HTMLInputElement>) => void;
   onSendImage: (image: string, mime: string, text: string) => Promise<void>;
   imageLoading: boolean;
+  onBarcode?: () => void;
 }) {
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
@@ -914,6 +949,19 @@ function ChatView({
           onChange={handleFileSelected}
           className="hidden"
         />
+        {onBarcode && (
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="size-11"
+            onClick={onBarcode}
+            disabled={loading || imageLoading}
+            title="Escanear código de barras"
+          >
+            <Barcode size={16} />
+          </Button>
+        )}
         <Button
           type="button"
           variant="outline"

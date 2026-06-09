@@ -2,6 +2,8 @@ import { streamText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { resolveNutrition } from "./resolver";
+import { findGIEntry } from "./data/gi-table";
+import { estimateGIWithHaiku } from "./providers/haikuGI";
 
 interface Env {
   DB: D1Database;
@@ -15,6 +17,11 @@ interface SuggestRequest {
   remaining: { kcal: number; protein: number; carbs: number; fat: number; fiber: number; sugar: number };
   time: string;
   is_gym_day: boolean;
+  activity_level?: "rest" | "low" | "medium" | "high";
+  sugar_gross?: number;
+  sugar_net?: number;
+  fiber_carb_ratio?: number;
+  high_gl_meals?: number;
   meals_today: string[];
   foods: Array<{
     id: string;
@@ -162,7 +169,7 @@ export default {
       const before = url.searchParams.get("before") ?? "9999-12-31";
       const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "14", 10), 60);
       const rows = await env.DB.prepare(
-        "SELECT id, date, time, items, totals FROM meals WHERE date < ? ORDER BY date DESC, time DESC LIMIT ?"
+        "SELECT id, date, time, items, totals, consumption_order FROM meals WHERE date < ? ORDER BY date DESC, time DESC LIMIT ?"
       ).bind(before, limit).all();
       const meals = rows.results.map((r) => ({
         id: r.id,
@@ -170,6 +177,7 @@ export default {
         time: r.time,
         items: JSON.parse(r.items as string),
         totals: JSON.parse(r.totals as string),
+        consumption_order: r.consumption_order ? JSON.parse(r.consumption_order as string) : undefined,
       }));
       return json(meals);
     }
@@ -180,7 +188,7 @@ export default {
         const date = url.searchParams.get("date");
         if (!date) return err("date required", 400);
         const rows = await env.DB.prepare(
-          "SELECT id, date, time, items, totals FROM meals WHERE date = ? ORDER BY time DESC"
+          "SELECT id, date, time, items, totals, consumption_order FROM meals WHERE date = ? ORDER BY time DESC"
         ).bind(date).all();
         const meals = rows.results.map((r) => ({
           id: r.id,
@@ -188,6 +196,7 @@ export default {
           time: r.time,
           items: JSON.parse(r.items as string),
           totals: JSON.parse(r.totals as string),
+          consumption_order: r.consumption_order ? JSON.parse(r.consumption_order as string) : undefined,
         }));
         return json(meals);
       }
@@ -199,10 +208,11 @@ export default {
           time: string;
           items: unknown;
           totals: unknown;
+          consumption_order?: number[];
         };
         await env.DB.prepare(
-          "INSERT INTO meals (id, date, time, items, totals) VALUES (?, ?, ?, ?, ?)"
-        ).bind(meal.id, meal.date, meal.time, JSON.stringify(meal.items), JSON.stringify(meal.totals)).run();
+          "INSERT INTO meals (id, date, time, items, totals, consumption_order) VALUES (?, ?, ?, ?, ?, ?)"
+        ).bind(meal.id, meal.date, meal.time, JSON.stringify(meal.items), JSON.stringify(meal.totals), meal.consumption_order ? JSON.stringify(meal.consumption_order) : null).run();
         return json({ ok: true });
       }
     }
@@ -217,10 +227,11 @@ export default {
           time: string;
           items: unknown;
           totals: unknown;
+          consumption_order?: number[];
         };
         await env.DB.prepare(
-          "UPDATE meals SET time = ?, items = ?, totals = ? WHERE id = ?"
-        ).bind(patch.time, JSON.stringify(patch.items), JSON.stringify(patch.totals), id).run();
+          "UPDATE meals SET time = ?, items = ?, totals = ?, consumption_order = ? WHERE id = ?"
+        ).bind(patch.time, JSON.stringify(patch.items), JSON.stringify(patch.totals), patch.consumption_order ? JSON.stringify(patch.consumption_order) : null, id).run();
         return json({ ok: true });
       }
 
@@ -260,7 +271,17 @@ export default {
         ? body.meals_today.join(", ")
         : "nothing yet";
 
-      const prompt = `You are a nutrition assistant. Suggest 3-5 foods to eat next based on remaining macro targets.
+      const metabolicContext = body.activity_level || body.sugar_gross !== undefined
+        ? `\nMetabolic context today:
+- Activity level: ${body.activity_level || "unknown"}
+- Sugar consumed: ${body.sugar_gross?.toFixed(1) || "?"}g gross, ~${body.sugar_net?.toFixed(1) || "?"}g net
+- Sugar-fiber ratio: ${body.fiber_carb_ratio?.toFixed(2) || "?"}g fiber per 10g carbs (target: ≥1.5)
+- High-GL meals (≥20) today: ${body.high_gl_meals || 0}
+
+Metabolic guidance: ${body.fiber_carb_ratio && body.fiber_carb_ratio < 1.5 ? "Ratio below target - prioritize high-fiber options. " : ""}${body.high_gl_meals && body.high_gl_meals > 0 ? "Multiple high-GL meals logged - suggest low-GI alternatives. " : ""}Include metabolic notes in suggestions (e.g., "Bajo IG (~35) para energía sostenida").`
+        : "";
+
+      const prompt = `You are a nutrition assistant. Suggest 3-5 foods to eat next based on remaining macro targets.${metabolicContext}
 
 Remaining macros for today:
 - Calories: ${Math.round(body.remaining.kcal)} kcal
@@ -334,6 +355,13 @@ Rules for food identification:
 - If user asks questions unrelated to food: respond with a helpful message (do not call tool)
 - If user shows a photo: analyze it and identify visible foods, estimate weights
 
+Order of consumption:
+- When identifying 2 or more food items, ask the user about the order they consumed them
+- Format: "¿Los comiste en este orden? [lista]. Si fue diferente, dímelo."
+- User can confirm, provide a different order, or say they ate everything together
+- If order is provided/confirmed, include consumption_order array in the tool call (0-indexed positions)
+- If order is unknown or user says everything together, omit consumption_order
+
 When you identify food items, ALWAYS call the logFood tool. Do not respond with JSON text.
 For non-food messages or questions, respond with text only (do not call tool).`;
 
@@ -355,6 +383,7 @@ For non-food messages or questions, respond with text only (do not call tool).`;
                   weight_g: z.number().describe("Weight in grams"),
                 })
               ),
+              consumption_order: z.array(z.number()).optional().describe("0-indexed positions of items in order they were consumed, if provided by user"),
             }),
           },
         },
@@ -741,13 +770,27 @@ Rules:
           const fat = nutrients["fat"] || 0;
           const fiber = nutrients["fiber"] || 0;
           const sugar = nutrients["sugars"] || 0;
+          const productName = offData.product.product_name || "Producto";
+
+          // Resolve GI
+          const giEntry = findGIEntry(productName);
+          let gi: number | null = giEntry?.gi ?? null;
+          let gi_source: string | null = giEntry ? "hardcoded" : null;
+
+          if (!gi) {
+            const giResult = await estimateGIWithHaiku(productName, env.ANTHROPIC_API_KEY);
+            if (giResult) {
+              gi = giResult.gi;
+              gi_source = "haiku";
+            }
+          }
 
           // Write to D1 cache
           const cacheKey = `${barcodeCode}`;
           const now = new Date().toISOString();
           await env.DB.prepare(`
-            INSERT INTO foods_cache (key, name, source, kcal, protein, carbs, fat, fiber, sugar, fetched_at, default_weight_g, portion)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO foods_cache (key, name, source, kcal, protein, carbs, fat, fiber, sugar, fetched_at, default_weight_g, portion, gi, gi_source)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(key) DO UPDATE SET
               name = excluded.name,
               source = excluded.source,
@@ -757,15 +800,17 @@ Rules:
               fat = excluded.fat,
               fiber = excluded.fiber,
               sugar = excluded.sugar,
-              fetched_at = excluded.fetched_at
-          `).bind(cacheKey, offData.product.product_name || "Producto", "off_barcode", kcal, protein, carbs, fat, fiber, sugar, now, 100, "100g").run();
+              fetched_at = excluded.fetched_at,
+              gi = excluded.gi,
+              gi_source = excluded.gi_source
+          `).bind(cacheKey, productName, "off_barcode", kcal, protein, carbs, fat, fiber, sugar, now, 100, "100g", gi, gi_source).run();
 
           return json({
             type: "barcode",
             found: true,
             code: barcodeCode,
             product: {
-              name: offData.product.product_name || "Producto",
+              name: productName,
               kcal,
               protein,
               carbs,
@@ -774,6 +819,8 @@ Rules:
               sugar,
               per_100g: true,
               default_weight_g: 100,
+              gi,
+              gi_source,
             },
           });
         } catch (e) {
@@ -948,13 +995,27 @@ Rules:
         const fat = nutrients["fat"] || 0;
         const fiber = nutrients["fiber"] || 0;
         const sugar = nutrients["sugars"] || 0;
+        const productName = offData.product.product_name || "Producto";
+
+        // Resolve GI
+        const giEntry = findGIEntry(productName);
+        let gi: number | null = giEntry?.gi ?? null;
+        let gi_source: string | null = giEntry ? "hardcoded" : null;
+
+        if (!gi) {
+          const giResult = await estimateGIWithHaiku(productName, env.ANTHROPIC_API_KEY);
+          if (giResult) {
+            gi = giResult.gi;
+            gi_source = "haiku";
+          }
+        }
 
         // Write to D1 cache
         const cacheKey = code;
         const now = new Date().toISOString();
         await env.DB.prepare(`
-          INSERT INTO foods_cache (key, name, source, kcal, protein, carbs, fat, fiber, sugar, fetched_at, default_weight_g, portion)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO foods_cache (key, name, source, kcal, protein, carbs, fat, fiber, sugar, fetched_at, default_weight_g, portion, gi, gi_source)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(key) DO UPDATE SET
             name = excluded.name,
             source = excluded.source,
@@ -964,14 +1025,16 @@ Rules:
             fat = excluded.fat,
             fiber = excluded.fiber,
             sugar = excluded.sugar,
-            fetched_at = excluded.fetched_at
-        `).bind(cacheKey, offData.product.product_name || "Producto", "off_barcode", kcal, protein, carbs, fat, fiber, sugar, now, 100, "100g").run();
+            fetched_at = excluded.fetched_at,
+            gi = excluded.gi,
+            gi_source = excluded.gi_source
+        `).bind(cacheKey, productName, "off_barcode", kcal, protein, carbs, fat, fiber, sugar, now, 100, "100g", gi, gi_source).run();
 
         return json({
           found: true,
           code,
           product: {
-            name: offData.product.product_name || "Producto",
+            name: productName,
             kcal,
             protein,
             carbs,
@@ -980,6 +1043,8 @@ Rules:
             sugar,
             per_100g: true,
             default_weight_g: 100,
+            gi,
+            gi_source,
           },
         });
       } catch (e) {

@@ -130,6 +130,11 @@ export const api = {
     remaining: MacroTotals;
     time: string;
     is_gym_day: boolean;
+    activity_level?: "rest" | "low" | "medium" | "high";
+    sugar_gross?: number;
+    sugar_net?: number;
+    fiber_carb_ratio?: number;
+    high_gl_meals?: number;
     meals_today: string[];
     foods: TrackerFood[];
   }): Promise<Suggestion[]> =>
@@ -150,7 +155,7 @@ export const api = {
     messages: ChatMessage[],
     foods: Array<{ id: string; name: string; defaultWeight_g: number }>
   ): Promise<
-    | { type: "items"; items: Array<{ foodId: string; name: string; weight_g: number }> }
+    | { type: "items"; items: Array<{ foodId: string; name: string; weight_g: number }>; consumption_order?: number[] }
     | { type: "message"; text: string }
   > =>
     fetch(`${BASE}/api/chat`, {

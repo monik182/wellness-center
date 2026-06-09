@@ -2,6 +2,8 @@ import { normalizeFoodName } from "./utils/normalizeFoodName";
 import { HARDCODED_FOODS } from "./hardcodedFoods";
 import { fetchOpenFoodFacts, type MacroResult } from "./providers/openFoodFacts";
 import { estimateWithHaiku } from "./providers/haiku";
+import { findGIEntry } from "./data/gi-table";
+import { estimateGIWithHaiku } from "./providers/haikuGI";
 
 export interface ResolveRequest {
   name: string;
@@ -30,6 +32,8 @@ export interface ResolveResponse {
   };
   default_weight_g?: number;
   portion?: string;
+  gi?: number;
+  gi_source?: "hardcoded" | "haiku";
 }
 
 function levenshtein(a: string, b: string): number {
@@ -70,12 +74,12 @@ async function writeToCache(
   source: string,
   macros: MacroResult,
   db: D1Database,
-  portionInfo?: { default_weight_g?: number; portion?: string }
+  portionInfo?: { default_weight_g?: number; portion?: string; gi?: number; gi_source?: string }
 ): Promise<void> {
   try {
     await db
       .prepare(
-        "INSERT OR REPLACE INTO foods_cache (key, name, source, kcal, protein, carbs, fat, fiber, sugar, fetched_at, default_weight_g, portion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT OR REPLACE INTO foods_cache (key, name, source, kcal, protein, carbs, fat, fiber, sugar, fetched_at, default_weight_g, portion, gi, gi_source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
       )
       .bind(
         key,
@@ -89,7 +93,9 @@ async function writeToCache(
         macros.sugar,
         new Date().toISOString(),
         portionInfo?.default_weight_g ?? null,
-        portionInfo?.portion ?? null
+        portionInfo?.portion ?? null,
+        portionInfo?.gi ?? null,
+        portionInfo?.gi_source ?? null
       )
       .run();
   } catch (e) {
@@ -125,6 +131,11 @@ export async function resolveNutrition(
       fiber: hardcoded.fiber,
       sugar: hardcoded.sugar ?? 0,
     };
+
+    // Resolve GI
+    const giEntry = findGIEntry(hardcoded.name);
+    const gi = giEntry?.gi;
+
     return {
       name: hardcoded.name,
       weight_g: req.weight_g,
@@ -133,6 +144,8 @@ export async function resolveNutrition(
       macros: scaleToWeight(per_100g, req.weight_g),
       default_weight_g: hardcoded.default_weight_g,
       portion: hardcoded.portion,
+      gi,
+      gi_source: gi ? "hardcoded" : undefined,
     };
   }
 
@@ -148,11 +161,13 @@ export async function resolveNutrition(
     sugar: number | null;
     default_weight_g: number | null;
     portion: string | null;
+    gi: number | null;
+    gi_source: string | null;
   } | null = null;
 
   try {
     cacheRow = await env.DB.prepare(
-      "SELECT name, source, kcal, protein, carbs, fat, fiber, sugar, default_weight_g, portion FROM foods_cache WHERE key = ?"
+      "SELECT name, source, kcal, protein, carbs, fat, fiber, sugar, default_weight_g, portion, gi, gi_source FROM foods_cache WHERE key = ?"
     ).bind(normalized).first<{
       name: string;
       source: string;
@@ -164,6 +179,8 @@ export async function resolveNutrition(
       sugar: number | null;
       default_weight_g: number | null;
       portion: string | null;
+      gi: number | null;
+      gi_source: string | null;
     }>();
   } catch (e) {
     console.error("foods_cache SELECT failed:", e);
@@ -186,14 +203,32 @@ export async function resolveNutrition(
       macros: scaleToWeight(per_100g, req.weight_g),
       default_weight_g: cacheRow.default_weight_g ?? undefined,
       portion: cacheRow.portion ?? undefined,
+      gi: cacheRow.gi ?? undefined,
+      gi_source: (cacheRow.gi_source as "hardcoded" | "haiku") ?? undefined,
     };
   }
 
   // Step 3: Open Food Facts
   const offResult = await fetchOpenFoodFacts(req.name, env.OFF_COOKIE);
   if (offResult) {
+    // Resolve GI
+    const giEntry = findGIEntry(offResult.displayName);
+    let gi: number | undefined;
+    let gi_source: "hardcoded" | "haiku" | undefined;
+
+    if (giEntry) {
+      gi = giEntry.gi;
+      gi_source = "hardcoded";
+    } else {
+      const giResult = await estimateGIWithHaiku(offResult.displayName, env.ANTHROPIC_API_KEY);
+      gi = giResult?.gi;
+      gi_source = "haiku";
+    }
+
     await writeToCache(normalized, offResult.displayName, "off", offResult.result, env.DB, {
       default_weight_g: offResult.default_weight_g,
+      gi,
+      gi_source,
     });
     return {
       name: offResult.displayName,
@@ -202,14 +237,34 @@ export async function resolveNutrition(
       per_100g: offResult.result,
       macros: scaleToWeight(offResult.result, req.weight_g),
       default_weight_g: offResult.default_weight_g,
+      gi,
+      gi_source,
     };
   }
 
   // Step 4: Haiku (guaranteed to return something)
   const haikuResult = await estimateWithHaiku(req.name, env.ANTHROPIC_API_KEY);
+
+  // Resolve GI
+  let gi: number | undefined;
+  let gi_source: "hardcoded" | "haiku" | undefined;
+
+  const giEntry = findGIEntry(req.name);
+  if (giEntry) {
+    gi = giEntry.gi;
+    gi_source = "hardcoded";
+  } else {
+    // Fallback to Haiku estimation
+    const giResult = await estimateGIWithHaiku(req.name, env.ANTHROPIC_API_KEY);
+    gi = giResult?.gi;
+    gi_source = "haiku";
+  }
+
   await writeToCache(normalized, req.name, "haiku", haikuResult, env.DB, {
     default_weight_g: haikuResult.default_weight_g,
     portion: haikuResult.portion,
+    gi,
+    gi_source,
   });
 
   return {
@@ -220,5 +275,7 @@ export async function resolveNutrition(
     macros: scaleToWeight(haikuResult, req.weight_g),
     default_weight_g: haikuResult.default_weight_g,
     portion: haikuResult.portion,
+    gi,
+    gi_source,
   };
 }

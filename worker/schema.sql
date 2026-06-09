@@ -1,9 +1,10 @@
 CREATE TABLE IF NOT EXISTS meals (
-  id      TEXT PRIMARY KEY,
-  date    TEXT NOT NULL,    -- YYYY-MM-DD (CET, sent by client)
-  time    TEXT NOT NULL,    -- HH:MM (CET, sent by client)
-  items   TEXT NOT NULL,    -- JSON: LoggedFoodItem[]
-  totals  TEXT NOT NULL     -- JSON: MacroTotals
+  id                TEXT PRIMARY KEY,
+  date              TEXT NOT NULL,    -- YYYY-MM-DD (CET, sent by client)
+  time              TEXT NOT NULL,    -- HH:MM (CET, sent by client)
+  items             TEXT NOT NULL,    -- JSON: LoggedFoodItem[]
+  totals            TEXT NOT NULL,    -- JSON: MacroTotals
+  consumption_order TEXT               -- JSON: number[] (indices into items array, in consumption order)
 );
 
 CREATE INDEX IF NOT EXISTS idx_meals_date ON meals(date);
@@ -28,7 +29,9 @@ CREATE TABLE IF NOT EXISTS foods_cache (
   sugar             REAL,
   fetched_at        TEXT NOT NULL,
   default_weight_g  REAL,
-  portion           TEXT
+  portion           TEXT,
+  gi                INTEGER,                   -- Glycemic Index value (0-100)
+  gi_source         TEXT                       -- 'hardcoded' | 'haiku'
 );
 
 CREATE INDEX IF NOT EXISTS idx_foods_cache_key ON foods_cache(key);
@@ -52,5 +55,7 @@ CREATE TABLE IF NOT EXISTS custom_foods (
 
 CREATE INDEX IF NOT EXISTS idx_custom_foods_name ON custom_foods(name);
 
--- Migration: run once on live D1 database
+-- Migrations: run once on live D1 database
 -- wrangler d1 execute DB --remote --command "ALTER TABLE foods_cache ADD COLUMN default_weight_g REAL; ALTER TABLE foods_cache ADD COLUMN portion TEXT;"
+-- wrangler d1 execute DB --remote --command "ALTER TABLE foods_cache ADD COLUMN gi INTEGER; ALTER TABLE foods_cache ADD COLUMN gi_source TEXT;"
+-- wrangler d1 execute DB --remote --command "ALTER TABLE meals ADD COLUMN consumption_order TEXT;"

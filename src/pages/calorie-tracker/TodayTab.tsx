@@ -12,6 +12,7 @@ import {
   DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { Pencil, Trash2, ChevronDown, ChevronUp, Info } from "lucide-react";
+import { MetabolicImpactChart } from "./components/MetabolicImpactChart";
 
 // ── Group emoji map ──────────────────────────────────────────────
 const GROUP_EMOJI: Record<string, string> = {
@@ -323,13 +324,10 @@ function MealCard({
             </table>
           </div>
 
-          {/* Metabolic impact placeholder */}
-          <div
-            className="px-3 py-4 rounded text-center text-xs"
-            style={{ background: "var(--cream)", border: "1px dashed var(--border-color)", color: "var(--ink-muted)" }}
-          >
-            <p className="font-semibold mb-1">Impacto Metabólico</p>
-            <p>Disponible próximamente</p>
+          {/* Metabolic impact chart */}
+          <div className="px-3 py-4">
+            <p className="font-semibold mb-3">Impacto Metabólico</p>
+            <MetabolicImpactChart items={meal.items} consumptionOrder={meal.consumption_order} />
           </div>
         </div>
       )}
@@ -523,12 +521,25 @@ export default function TodayTab({
       sugar:   currentTargets.sugar   - currentConsumed.sugar,
     };
     const meals_today = currentMeals.flatMap((m) => m.items.map((i) => i.name));
+
+    // Metabolic context
+    const sugar_net = Math.max(0, currentConsumed.sugar - currentConsumed.fiber * 0.5);
+    const fiber_carb_ratio = currentConsumed.carbs > 0
+      ? (currentConsumed.fiber / currentConsumed.carbs) * 10
+      : 0;
+    const high_gl_meals = 0; // Would need GI data from items to calculate properly
+
     setSuggestionsLoading(true);
     try {
       const result = await api.getSuggestions({
         remaining,
         time: getCurrentTimeCET(),
         is_gym_day: actLevel === "high",
+        activity_level: actLevel,
+        sugar_gross: currentConsumed.sugar,
+        sugar_net,
+        fiber_carb_ratio,
+        high_gl_meals,
         meals_today,
         foods: TRACKER_FOODS,
       });
