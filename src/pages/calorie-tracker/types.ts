@@ -118,6 +118,35 @@ export function sumMealTotals(meals: LoggedMeal[]): MacroTotals {
   return sumTotals(meals.flatMap((m) => m.items));
 }
 
+// Journal view exercise levels (Phase 1 refactor)
+export type ExerciseLevel = "none" | "easy" | "medium" | "hard";
+
+export const EXERCISE_LEVELS = [
+  { level: "none" as const,   label: "None",   desc: "Rest day. No exercise." },
+  { level: "easy" as const,   label: "Easy",   desc: "Light walk, gentle yoga, stretching." },
+  { level: "medium" as const, label: "Medium", desc: "Dynamic yoga, long walk, recreational cycling." },
+  { level: "hard" as const,   label: "Hard",   desc: "Gym (weights), HIIT, running, intense swimming." },
+] as const;
+
+export const JOURNAL_TARGETS: Record<ExerciseLevel, MacroTotals> = {
+  none:   { kcal: 1475, protein: 120, carbs: 148, fat: 49, fiber: 27, sugar: 25 },
+  easy:   { kcal: 1550, protein: 125, carbs: 155, fat: 52, fiber: 27, sugar: 25 },
+  medium: { kcal: 1650, protein: 130, carbs: 165, fat: 55, fiber: 27, sugar: 25 },
+  hard:   { kcal: 1750, protein: 135, carbs: 175, fat: 58, fiber: 27, sugar: 25 },
+};
+
+// Phase 2: pending entry state for text logging
+export type PendingStatus = "resolving" | "saving" | "error";
+
+export interface PendingEntry {
+  id: string;
+  text: string;
+  time: string;
+  status: PendingStatus;
+  error?: string;
+  resolved?: LoggedFoodItem;
+}
+
 export interface Suggestion {
   foodId: string;
   name: string;
