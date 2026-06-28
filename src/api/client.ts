@@ -108,6 +108,9 @@ export const api = {
   getMeals: (date: string): Promise<LoggedMeal[]> =>
     fetch(`${BASE}/api/meals?date=${date}`, { headers: headers() }).then((r) => r.json()),
 
+  getMealDates: (year: number, month: number): Promise<Array<{ date: string; totals: MacroTotals }>> =>
+    fetch(`${BASE}/api/meal-dates?year=${year}&month=${month}`, { headers: headers() }).then((r) => r.json()),
+
   getMealHistory: (before: string, limit = 14): Promise<LoggedMeal[]> =>
     fetch(`${BASE}/api/meals/history?before=${before}&limit=${limit}`, { headers: headers() }).then((r) => r.json()),
 

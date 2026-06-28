@@ -5,11 +5,15 @@ import ExerciseLevelButton from "./ExerciseLevelButton";
 interface JournalHeaderProps {
   exerciseLevel: ExerciseLevel;
   onExerciseLevelClick: () => void;
+  dateLabel: string;
+  onDateClick: () => void;
 }
 
 export default function JournalHeader({
   exerciseLevel,
   onExerciseLevelClick,
+  dateLabel,
+  onDateClick,
 }: JournalHeaderProps) {
   return (
     <div className="flex items-center justify-between px-4 py-3">
@@ -22,9 +26,13 @@ export default function JournalHeader({
       </span>
 
       {/* Center: date label */}
-      <span className="text-[17px] font-semibold text-[var(--ink)]">
-        Today
-      </span>
+      <button
+        onClick={onDateClick}
+        className="flex items-center justify-center min-h-[44px] px-3 rounded-full text-[17px] font-semibold text-[var(--ink)] active:bg-[var(--beige)] transition-colors"
+        aria-label="Change date"
+      >
+        {dateLabel}
+      </button>
 
       {/* Right: exercise level + settings */}
       <div className="flex items-center gap-1">

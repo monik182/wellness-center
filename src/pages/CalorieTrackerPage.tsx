@@ -1,13 +1,15 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { api } from "../api/client";
-import { useMeals } from "./calorie-tracker/hooks/useMeals";
+import { useMeals, prefetchMeals } from "./calorie-tracker/hooks/useMeals";
 import { useExerciseLevel } from "./calorie-tracker/hooks/useExerciseLevel";
 import { usePhotoCapture } from "./calorie-tracker/hooks/usePhotoCapture";
 import { sumMealTotals, sumTotals } from "./calorie-tracker/types";
 import type { LoggedFoodItem, LoggedMeal, PendingEntry } from "./calorie-tracker/types";
-import { getToday, getCurrentTime, itemFromResolve } from "./calorie-tracker/utils";
+import { getToday, getCurrentTime, itemFromResolve, formatHeaderDate, addDays } from "./calorie-tracker/utils";
 import JournalHeader from "./calorie-tracker/components/JournalHeader";
+import CalendarPicker from "./calorie-tracker/components/CalendarPicker";
 import JournalFeed from "./calorie-tracker/components/JournalFeed";
+import SwipeableFeed from "./calorie-tracker/components/SwipeableFeed";
 import InputBar from "./calorie-tracker/components/InputBar";
 import MacroBar from "./calorie-tracker/components/MacroBar";
 import MacroDetailDialog from "./calorie-tracker/components/MacroDetailDialog";
@@ -17,8 +19,9 @@ import PhotoConfirmSheet from "./calorie-tracker/components/PhotoConfirmSheet";
 
 export default function CalorieTrackerPage() {
   const today = getToday();
-  const { meals, loading, refetch } = useMeals(today);
-  const { level, setLevel, targets } = useExerciseLevel(today);
+  const [selectedDate, setSelectedDate] = useState(today);
+  const { meals, loading, refetch } = useMeals(selectedDate);
+  const { level, setLevel, targets } = useExerciseLevel(selectedDate);
   const photo = usePhotoCapture();
 
   const [pendingEntries, setPendingEntries] = useState<PendingEntry[]>([]);
@@ -26,6 +29,19 @@ export default function CalorieTrackerPage() {
   const [exerciseDialogOpen, setExerciseDialogOpen] = useState(false);
   const [macroDialogOpen, setMacroDialogOpen] = useState(false);
   const [photoOpen, setPhotoOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+
+  // Prefetch adjacent days so swipe navigation feels instant.
+  useEffect(() => {
+    prefetchMeals(addDays(selectedDate, -1));
+    const next = addDays(selectedDate, 1);
+    if (next <= today) prefetchMeals(next);
+  }, [selectedDate, today]);
+
+  function navigateDay(date: string) {
+    if (date > today) return;
+    setSelectedDate(date);
+  }
 
   // Include resolved pending items in consumed totals for optimistic updates
   const persistedConsumed = sumMealTotals(meals);
@@ -51,7 +67,7 @@ export default function CalorieTrackerPage() {
 
       const meal: LoggedMeal = {
         id: crypto.randomUUID(),
-        date: today,
+        date: selectedDate,
         time: entry.time,
         items: [item],
         totals: sumTotals([item]),
@@ -65,7 +81,7 @@ export default function CalorieTrackerPage() {
         error: e instanceof Error ? e.message : "Failed to resolve",
       });
     }
-  }, [today, refetch]);
+  }, [selectedDate, refetch]);
 
   function handleSubmit(text: string) {
     const entry: PendingEntry = {
@@ -102,7 +118,7 @@ export default function CalorieTrackerPage() {
   async function handlePhotoAccept(items: LoggedFoodItem[]) {
     const meal: LoggedMeal = {
       id: crypto.randomUUID(),
-      date: today,
+      date: selectedDate,
       time: getCurrentTime(),
       items,
       totals: sumTotals(items),
@@ -132,18 +148,32 @@ export default function CalorieTrackerPage() {
       <JournalHeader
         exerciseLevel={level}
         onExerciseLevelClick={() => setExerciseDialogOpen(true)}
+        dateLabel={formatHeaderDate(selectedDate, today)}
+        onDateClick={() => setCalendarOpen(true)}
       />
-      <JournalFeed
-        meals={meals}
-        loading={loading}
-        pendingEntries={pendingEntries}
-        onEntryTap={handleEntryTap}
-        onPendingRetry={handleRetry}
-        onPendingDismiss={handleDismiss}
-      />
+      <SwipeableFeed selectedDate={selectedDate} today={today} onNavigate={navigateDay}>
+        <JournalFeed
+          meals={meals}
+          loading={loading}
+          pendingEntries={pendingEntries}
+          onEntryTap={handleEntryTap}
+          onPendingRetry={handleRetry}
+          onPendingDismiss={handleDismiss}
+        />
+      </SwipeableFeed>
       <InputBar onSubmit={handleSubmit} onVoiceResult={handleSubmit} onPhoto={handlePhoto} />
       <MacroBar consumed={consumed} onTap={() => setMacroDialogOpen(true)} />
 
+      <CalendarPicker
+        open={calendarOpen}
+        onOpenChange={setCalendarOpen}
+        selectedDate={selectedDate}
+        today={today}
+        onSelect={(d) => {
+          setSelectedDate(d);
+          setCalendarOpen(false);
+        }}
+      />
       <ExerciseLevelDialog
         open={exerciseDialogOpen}
         onOpenChange={setExerciseDialogOpen}

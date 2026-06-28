@@ -182,6 +182,32 @@ export default {
       return json(meals);
     }
 
+    // /api/meal-dates?year=YYYY&month=M
+    if (path === "/api/meal-dates" && method === "GET") {
+      const year = url.searchParams.get("year");
+      const month = url.searchParams.get("month");
+      if (!year || !month) return err("year and month required", 400);
+      const prefix = `${year}-${String(parseInt(month, 10)).padStart(2, "0")}-%`;
+      const rows = await env.DB.prepare(
+        "SELECT date, totals FROM meals WHERE date LIKE ? ORDER BY date"
+      ).bind(prefix).all();
+
+      const byDate = new Map<string, { kcal: number; protein: number; carbs: number; fat: number; fiber: number; sugar: number }>();
+      for (const r of rows.results) {
+        const date = r.date as string;
+        const t = JSON.parse(r.totals as string);
+        const acc = byDate.get(date) ?? { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 };
+        acc.kcal += t.kcal ?? 0;
+        acc.protein += t.protein ?? 0;
+        acc.carbs += t.carbs ?? 0;
+        acc.fat += t.fat ?? 0;
+        acc.fiber += t.fiber ?? 0;
+        acc.sugar += t.sugar ?? 0;
+        byDate.set(date, acc);
+      }
+      return json([...byDate.entries()].map(([date, totals]) => ({ date, totals })));
+    }
+
     // /api/meals
     if (path === "/api/meals") {
       if (method === "GET") {
