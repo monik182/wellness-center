@@ -126,7 +126,7 @@ export default function CalorieTrackerPage() {
         onPendingRetry={handleRetry}
         onPendingDismiss={handleDismiss}
       />
-      <InputBar onSubmit={handleSubmit} />
+      <InputBar onSubmit={handleSubmit} onVoiceResult={handleSubmit} />
       <MacroBar consumed={consumed} onTap={() => setMacroDialogOpen(true)} />
 
       <ExerciseLevelDialog
