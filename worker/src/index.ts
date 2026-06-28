@@ -877,31 +877,24 @@ Rules:
 - Match food names to the available foods list when possible
 - Be conservative: if uncertain, lower the confidence score`;
 
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      const resp = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": env.ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
+          "Authorization": `Bearer ${env.OPENAI_API_KEY}`,
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "gpt-4o",
           max_tokens: 1024,
+          response_format: { type: "json_object" },
           messages: [
             {
               role: "user",
               content: [
+                { type: "text", text: prompt },
                 {
-                  type: "image",
-                  source: {
-                    type: "base64",
-                    media_type: body.mimeType,
-                    data: body.image,
-                  },
-                },
-                {
-                  type: "text",
-                  text: prompt,
+                  type: "image_url",
+                  image_url: { url: `data:${body.mimeType};base64,${body.image}` },
                 },
               ],
             },
@@ -909,10 +902,10 @@ Rules:
         }),
       });
 
-      if (!resp.ok) return err("Claude API error", 502);
+      if (!resp.ok) return err("OpenAI API error", 502);
 
-      const aiResp = await resp.json() as { content: Array<{ text: string }> };
-      const text = aiResp.content[0]?.text ?? "{}";
+      const aiResp = await resp.json() as { choices: Array<{ message: { content: string } }> };
+      const text = aiResp.choices[0]?.message?.content ?? "{}";
 
       const match = text.match(/\{[\s\S]*\}/);
       if (!match) return json({ success: false, error: "Unable to parse response" }, 502);
