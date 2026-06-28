@@ -1,14 +1,24 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Mic, Camera, Square } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useVoiceRecorder } from "../hooks/useVoiceRecorder";
 
 interface InputBarProps {
   onSubmit: (text: string) => void;
   onVoiceResult?: (text: string) => void;
+  onPhoto?: (file: File) => void;
 }
 
-export default function InputBar({ onSubmit, onVoiceResult }: InputBarProps) {
+export default function InputBar({ onSubmit, onVoiceResult, onPhoto }: InputBarProps) {
   const [value, setValue] = useState("");
+  const [actionSheetOpen, setActionSheetOpen] = useState(false);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const libraryInputRef = useRef<HTMLInputElement>(null);
 
   const { recording, transcribing, recordingSeconds, error, toggleRecording } =
     useVoiceRecorder({
@@ -25,6 +35,12 @@ export default function InputBar({ onSubmit, onVoiceResult }: InputBarProps) {
     if (!trimmed) return;
     onSubmit(trimmed);
     setValue("");
+  }
+
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (file && onPhoto) onPhoto(file);
   }
 
   return (
@@ -80,13 +96,67 @@ export default function InputBar({ onSubmit, onVoiceResult }: InputBarProps) {
         </button>
         <button
           type="button"
-          disabled
-          className="flex items-center justify-center w-[44px] h-[44px] rounded-full text-[var(--ink-muted)] opacity-40"
+          onClick={() => setActionSheetOpen(true)}
+          disabled={busy}
+          className="flex items-center justify-center w-[44px] h-[44px] rounded-full text-[var(--ink-muted)] disabled:opacity-40"
           aria-label="Photo input"
         >
           <Camera size={22} />
         </button>
       </form>
+
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleFile}
+        className="hidden"
+      />
+      <input
+        ref={libraryInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFile}
+        className="hidden"
+      />
+
+      <Dialog open={actionSheetOpen} onOpenChange={setActionSheetOpen}>
+        <DialogContent className="max-w-[340px]">
+          <DialogHeader>
+            <DialogTitle className="text-[17px] font-semibold">Add a photo</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setActionSheetOpen(false);
+                cameraInputRef.current?.click();
+              }}
+              className="w-full h-[50px] rounded-lg text-[17px] font-medium text-[var(--ink)] bg-[var(--beige)] active:opacity-90"
+            >
+              Take Photo
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActionSheetOpen(false);
+                libraryInputRef.current?.click();
+              }}
+              className="w-full h-[50px] rounded-lg text-[17px] font-medium text-[var(--ink)] bg-[var(--beige)] active:opacity-90"
+            >
+              Choose from Library
+            </button>
+            <button
+              type="button"
+              onClick={() => setActionSheetOpen(false)}
+              className="w-full h-[44px] rounded-lg text-[15px] text-[var(--ink-muted)]"
+            >
+              Cancel
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

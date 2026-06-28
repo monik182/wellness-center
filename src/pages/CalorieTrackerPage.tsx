@@ -2,9 +2,10 @@ import { useState, useCallback } from "react";
 import { api } from "../api/client";
 import { useMeals } from "./calorie-tracker/hooks/useMeals";
 import { useExerciseLevel } from "./calorie-tracker/hooks/useExerciseLevel";
+import { usePhotoCapture } from "./calorie-tracker/hooks/usePhotoCapture";
 import { sumMealTotals, sumTotals } from "./calorie-tracker/types";
 import type { LoggedFoodItem, LoggedMeal, PendingEntry } from "./calorie-tracker/types";
-import { getToday, getCurrentTime } from "./calorie-tracker/utils";
+import { getToday, getCurrentTime, itemFromResolve } from "./calorie-tracker/utils";
 import JournalHeader from "./calorie-tracker/components/JournalHeader";
 import JournalFeed from "./calorie-tracker/components/JournalFeed";
 import InputBar from "./calorie-tracker/components/InputBar";
@@ -12,16 +13,19 @@ import MacroBar from "./calorie-tracker/components/MacroBar";
 import MacroDetailDialog from "./calorie-tracker/components/MacroDetailDialog";
 import ExerciseLevelDialog from "./calorie-tracker/components/ExerciseLevelDialog";
 import NutritionDetailSheet from "./calorie-tracker/components/NutritionDetailSheet";
+import PhotoConfirmSheet from "./calorie-tracker/components/PhotoConfirmSheet";
 
 export default function CalorieTrackerPage() {
   const today = getToday();
   const { meals, loading, refetch } = useMeals(today);
   const { level, setLevel, targets } = useExerciseLevel(today);
+  const photo = usePhotoCapture();
 
   const [pendingEntries, setPendingEntries] = useState<PendingEntry[]>([]);
   const [detailItem, setDetailItem] = useState<{ item: LoggedFoodItem; mealId: string } | null>(null);
   const [exerciseDialogOpen, setExerciseDialogOpen] = useState(false);
   const [macroDialogOpen, setMacroDialogOpen] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
 
   // Include resolved pending items in consumed totals for optimistic updates
   const persistedConsumed = sumMealTotals(meals);
@@ -41,20 +45,7 @@ export default function CalorieTrackerPage() {
   const resolveAndPersist = useCallback(async (entry: PendingEntry) => {
     try {
       const resolved = await api.resolveNutrition(entry.text, 100);
-      const weight = resolved.default_weight_g ?? 100;
-      const scale = weight / 100;
-      const item: LoggedFoodItem = {
-        foodId: `resolved-${entry.text.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
-        name: resolved.name,
-        weight_g: weight,
-        source: resolved.source,
-        kcal: resolved.per_100g.kcal * scale,
-        protein: resolved.per_100g.protein * scale,
-        carbs: resolved.per_100g.carbs * scale,
-        fat: resolved.per_100g.fat * scale,
-        fiber: resolved.per_100g.fiber * scale,
-        sugar: resolved.per_100g.sugar * scale,
-      };
+      const item = itemFromResolve(resolved, resolved.default_weight_g ?? 100);
 
       updatePending(entry.id, { status: "saving", resolved: item });
 
@@ -98,6 +89,30 @@ export default function CalorieTrackerPage() {
     removePending(id);
   }
 
+  function handlePhoto(file: File) {
+    setPhotoOpen(true);
+    photo.onFileSelected(file);
+  }
+
+  function handlePhotoOpenChange(open: boolean) {
+    setPhotoOpen(open);
+    if (!open) photo.reset();
+  }
+
+  async function handlePhotoAccept(items: LoggedFoodItem[]) {
+    const meal: LoggedMeal = {
+      id: crypto.randomUUID(),
+      date: today,
+      time: getCurrentTime(),
+      items,
+      totals: sumTotals(items),
+    };
+    await api.addMeal(meal);
+    setPhotoOpen(false);
+    photo.reset();
+    refetch();
+  }
+
   async function handleDelete(mealId: string) {
     setDetailItem(null);
     await api.deleteMeal(mealId);
@@ -126,7 +141,7 @@ export default function CalorieTrackerPage() {
         onPendingRetry={handleRetry}
         onPendingDismiss={handleDismiss}
       />
-      <InputBar onSubmit={handleSubmit} onVoiceResult={handleSubmit} />
+      <InputBar onSubmit={handleSubmit} onVoiceResult={handleSubmit} onPhoto={handlePhoto} />
       <MacroBar consumed={consumed} onTap={() => setMacroDialogOpen(true)} />
 
       <ExerciseLevelDialog
@@ -150,6 +165,17 @@ export default function CalorieTrackerPage() {
         item={detailItem?.item ?? null}
         mealId={detailItem?.mealId ?? null}
         onDelete={handleDelete}
+      />
+      <PhotoConfirmSheet
+        open={photoOpen}
+        onOpenChange={handlePhotoOpenChange}
+        status={photo.status}
+        imageDataUrl={photo.imageDataUrl}
+        detectedItems={photo.detectedItems}
+        summary={photo.summary}
+        warnings={photo.warnings}
+        error={photo.error}
+        onAccept={handlePhotoAccept}
       />
     </div>
   );

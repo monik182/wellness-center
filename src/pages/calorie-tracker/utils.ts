@@ -1,4 +1,23 @@
+import type { LoggedFoodItem } from "./types";
+import type { ResolveResponse } from "../../api/client";
+
 const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+export function itemFromResolve(resolved: ResolveResponse, weight_g: number): LoggedFoodItem {
+  const scale = weight_g / 100;
+  return {
+    foodId: `resolved-${resolved.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+    name: resolved.name,
+    weight_g,
+    source: resolved.source,
+    kcal: resolved.per_100g.kcal * scale,
+    protein: resolved.per_100g.protein * scale,
+    carbs: resolved.per_100g.carbs * scale,
+    fat: resolved.per_100g.fat * scale,
+    fiber: resolved.per_100g.fiber * scale,
+    sugar: resolved.per_100g.sugar * scale,
+  };
+}
 
 export function getToday(): string {
   return new Intl.DateTimeFormat("sv-SE", {
